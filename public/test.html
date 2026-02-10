@@ -189,6 +189,7 @@
             min-width: 0;
         }
         
+        /* FIX #1: Improved resizable question display */
         .question-display {
             padding: 30px;
             background: white;
@@ -196,10 +197,9 @@
             overflow-y: auto;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             flex-shrink: 0;
-            /* FIX #1: Make question display resizable */
-            resize: vertical;
-            min-height: 200px;
-            max-height: 50%;
+            position: relative;
+            min-height: 180px;
+            max-height: 50vh;
         }
         
         .question-display h2 {
@@ -250,12 +250,45 @@
             color: #333;
         }
         
+        /* FIX #1: Improved resize handle */
+        .resize-handle {
+            height: 8px;
+            background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+            cursor: ns-resize;
+            position: relative;
+            flex-shrink: 0;
+            border-top: 1px solid #d0d0d0;
+            border-bottom: 1px solid #d0d0d0;
+            transition: background 0.2s;
+        }
+        
+        .resize-handle:hover {
+            background: linear-gradient(to bottom, #667eea, #5568d3);
+        }
+        
+        .resize-handle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 4px;
+            background: #999;
+            border-radius: 2px;
+        }
+        
+        .resize-handle:hover::before {
+            background: white;
+        }
+        
         .editor-container {
             flex: 1;
             display: flex;
             flex-direction: column;
             background: #1e1e1e;
             min-height: 0;
+            position: relative;
         }
         
         .editor-toolbar {
@@ -301,12 +334,18 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
         .btn-run {
             background: #2ed573;
             color: white;
         }
         
-        .btn-run:hover {
+        .btn-run:hover:not(:disabled) {
             background: #26d367;
         }
         
@@ -315,7 +354,7 @@
             color: white;
         }
         
-        .btn-submit:hover {
+        .btn-submit:hover:not(:disabled) {
             background: #5568d3;
         }
         
@@ -324,7 +363,7 @@
             color: white;
         }
         
-        .btn-custom:hover {
+        .btn-custom:hover:not(:disabled) {
             background: #ff9502;
         }
         
@@ -333,66 +372,45 @@
             color: white;
         }
         
-        .btn-reset:hover {
+        .btn-reset:hover:not(:disabled) {
             background: #444;
         }
         
-        /* FIX #1: Resizable editor */
+        /* FIX #1: Improved editor wrapper */
         .editor-wrapper {
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-height: 0;
+            min-height: 300px;
             position: relative;
         }
         
         #code-editor {
             flex: 1;
             width: 100%;
-            min-height: 300px;
         }
         
-        .resize-handle {
-            height: 4px;
-            background: #2d2d30;
-            cursor: ns-resize;
-            position: relative;
-            flex-shrink: 0;
-        }
-        
-        .resize-handle:hover {
-            background: #667eea;
-        }
-        
-        .resize-handle::after {
-            content: '⋮';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #888;
-            font-size: 20px;
-            letter-spacing: 2px;
-        }
-        
+        /* FIX #1: Improved output panel */
         .output-panel {
             background: #1e1e1e;
             color: #d4d4d4;
             overflow-y: auto;
             border-top: 2px solid #2d2d30;
             flex-shrink: 0;
-            resize: vertical;
-            min-height: 150px;
-            max-height: 500px;
+            min-height: 180px;
+            max-height: 50vh;
         }
         
         .output-header {
             background: #2d2d30;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-bottom: 1px solid #3e3e42;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         
         .output-header h4 {
@@ -412,11 +430,74 @@
             line-height: 1.6;
         }
         
+        /* FIX #3: Enhanced test results display */
+        .test-results-summary {
+            background: #2d2d30;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .summary-section {
+            flex: 1;
+        }
+        
+        .summary-title {
+            color: #888;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .summary-stats {
+            display: flex;
+            gap: 30px;
+            align-items: baseline;
+        }
+        
+        .summary-main {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .summary-main.all-passed {
+            color: #2ed573;
+        }
+        
+        .summary-main.some-failed {
+            color: #ffa502;
+        }
+        
+        .summary-main.all-failed {
+            color: #ff4757;
+        }
+        
+        .summary-detail {
+            font-size: 0.95em;
+            color: #aaa;
+        }
+        
         .test-result {
-            margin: 12px 0;
-            padding: 15px;
+            margin: 15px 0;
+            padding: 18px;
             border-radius: 8px;
             border-left: 4px solid;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
         
         .test-result.passed {
@@ -429,22 +510,31 @@
             border-left-color: #ff4757;
         }
         
+        .test-result.hidden {
+            background: rgba(102, 126, 234, 0.1);
+            border-left-color: #667eea;
+        }
+        
         .test-result-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         
         .test-result-header strong {
             color: #fff;
+            font-size: 1.05em;
         }
         
         .test-result-badge {
-            padding: 4px 12px;
+            padding: 5px 14px;
             border-radius: 12px;
             font-size: 0.8em;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
         .badge-passed {
@@ -457,17 +547,32 @@
             color: white;
         }
         
+        .badge-hidden {
+            background: #667eea;
+            color: white;
+        }
+        
         .test-details {
             color: #b0b0b0;
             font-size: 0.9em;
-            line-height: 1.8;
+            line-height: 1.9;
         }
         
         .test-details code {
             background: #2d2d30;
-            padding: 2px 6px;
-            border-radius: 3px;
+            padding: 3px 8px;
+            border-radius: 4px;
             color: #4ec9b0;
+            font-family: 'Consolas', monospace;
+        }
+        
+        .test-details .error-message {
+            color: #ff4757;
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(255, 71, 87, 0.1);
+            border-radius: 4px;
+            border-left: 3px solid #ff4757;
         }
         
         #video-preview {
@@ -739,6 +844,31 @@
         .sidebar::-webkit-scrollbar-thumb {
             background: #555;
         }
+        
+        /* FIX #2: Function signature display */
+        .function-signature {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .function-signature h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+        
+        .function-signature code {
+            display: block;
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #2c3e50;
+            border: 1px solid #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -777,13 +907,8 @@
             <div class="custom-input-body">
                 <div class="input-section">
                     <label>Enter Your Custom Input:</label>
-                    <textarea id="custom-input-field" placeholder="Type your input here..."></textarea>
-                    <div class="input-hint">💡 Enter input exactly as the function parameters require</div>
-                </div>
-                <div class="input-section">
-                    <label>Expected Output (Optional):</label>
-                    <textarea id="custom-output-field" placeholder="Enter expected output..."></textarea>
-                    <div class="input-hint">💡 Leave blank if you just want to see the output</div>
+                    <textarea id="custom-input-field" placeholder="Example: [2, 7, 11, 15], 9"></textarea>
+                    <div class="input-hint">💡 Enter input as comma-separated values matching function parameters</div>
                 </div>
             </div>
             <div class="custom-input-footer">
@@ -843,6 +968,8 @@
                 <p>Choose any question from the sidebar to start coding</p>
             </div>
             
+            <div class="resize-handle" id="question-resize-handle"></div>
+            
             <div class="editor-container">
                 <div class="editor-toolbar">
                     <select id="language-select" onchange="changeLanguage()">
@@ -859,7 +986,7 @@
                         <button class="btn btn-custom" onclick="openCustomInput()">
                             ⚡ Custom Input
                         </button>
-                        <button class="btn btn-run" onclick="runCode()">
+                        <button class="btn btn-run" id="run-btn" onclick="runCode()">
                             ▶ Run Tests
                         </button>
                         <button class="btn btn-submit" onclick="submitQuestion()">
@@ -870,14 +997,14 @@
                 <div class="editor-wrapper">
                     <div id="code-editor"></div>
                 </div>
-                <div class="resize-handle"></div>
-                <div class="output-panel">
+                <div class="resize-handle" id="editor-resize-handle"></div>
+                <div class="output-panel" id="output-panel-container">
                     <div class="output-header">
-                        <h4>Output Console</h4>
-                        <span style="font-size: 0.85em; color: #888;">Test Results</span>
+                        <h4>📊 Test Results</h4>
+                        <span style="font-size: 0.85em; color: #888;">Run your code to see results</span>
                     </div>
                     <div class="output-content" id="output-panel">
-                        <pre>Output will appear here after running tests...</pre>
+                        <pre>Click "Run Tests" to execute your code against test cases...</pre>
                     </div>
                 </div>
             </div>
@@ -907,41 +1034,86 @@
         const urlParams = new URLSearchParams(window.location.search);
         const testId = urlParams.get('id');
         
-        const MOCK_TEST_DATA = {
-            id: testId || '1',
-            title: 'JavaScript & Algorithm Test',
-            duration: 60,
-            questions: [
-                {
-                    id: 'q1',
-                    title: 'Two Sum',
-                    difficulty: 'easy',
-                    description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.',
-                    visibleTestCases: [
-                        { input: '[2,7,11,15], 9', output: '[0,1]' },
-                        { input: '[3,2,4], 6', output: '[1,2]' },
-                        { input: '[3,3], 6', output: '[0,1]' }
-                    ],
-                    template: 'function twoSum(nums, target) {\n    // Write your code here\n    \n}'
+        // FIX #1: Improved resize functionality
+        function initResizeHandles() {
+            const questionHandle = document.getElementById('question-resize-handle');
+            const editorHandle = document.getElementById('editor-resize-handle');
+            const questionDisplay = document.querySelector('.question-display');
+            const outputPanel = document.getElementById('output-panel-container');
+            
+            let isResizing = false;
+            let currentHandle = null;
+            
+            function startResize(e, handle) {
+                isResizing = true;
+                currentHandle = handle;
+                document.body.style.cursor = 'ns-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            }
+            
+            function doResize(e) {
+                if (!isResizing) return;
+                
+                if (currentHandle === questionHandle) {
+                    const containerTop = questionDisplay.offsetTop;
+                    const newHeight = e.clientY - containerTop;
+                    const minHeight = 180;
+                    const maxHeight = window.innerHeight * 0.5;
+                    
+                    if (newHeight >= minHeight && newHeight <= maxHeight) {
+                        questionDisplay.style.height = newHeight + 'px';
+                        // FIX: Trigger Monaco layout update
+                        if (editor) {
+                            setTimeout(() => editor.layout(), 10);
+                        }
+                    }
+                } else if (currentHandle === editorHandle) {
+                    const containerTop = outputPanel.offsetTop;
+                    const newHeight = window.innerHeight - e.clientY;
+                    const minHeight = 180;
+                    const maxHeight = window.innerHeight * 0.5;
+                    
+                    if (newHeight >= minHeight && newHeight <= maxHeight) {
+                        outputPanel.style.height = newHeight + 'px';
+                        // FIX: Trigger Monaco layout update
+                        if (editor) {
+                            setTimeout(() => editor.layout(), 10);
+                        }
+                    }
                 }
-            ]
-        };
+            }
+            
+            function stopResize() {
+                isResizing = false;
+                currentHandle = null;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                // FIX: Final layout update after resize
+                if (editor) {
+                    setTimeout(() => editor.layout(), 10);
+                }
+            }
+            
+            questionHandle.addEventListener('mousedown', (e) => startResize(e, questionHandle));
+            editorHandle.addEventListener('mousedown', (e) => startResize(e, editorHandle));
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('mouseup', stopResize);
+        }
         
         function initMonacoEditor() {
             if (editorInitialized) {
-                console.log('Monaco editor already initialized');
                 return;
             }
             
             require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
             
             require(['vs/editor/editor.main'], function() {
-                console.log('Monaco loaded successfully');
                 editor = monaco.editor.create(document.getElementById('code-editor'), {
-                    value: '// Write your code here\n',
+                    value: '// Write your function here\n',
                     language: 'javascript',
                     theme: 'vs-dark',
-                    automaticLayout: true,
+                    automaticLayout: true, // FIX: Auto-adjust to container size
                     fontSize: 14,
                     minimap: { enabled: true },
                     scrollBeyondLastLine: false,
@@ -950,11 +1122,32 @@
                     readOnly: false,
                     cursorStyle: 'line',
                     wordWrap: 'on',
-                    tabSize: 2
+                    tabSize: 2,
+                    suggestOnTriggerCharacters: true,
+                    quickSuggestions: true,
+                    scrollbar: { // FIX: Enable scrollbars explicitly
+                        vertical: 'visible',
+                        horizontal: 'visible',
+                        verticalScrollbarSize: 10,
+                        horizontalScrollbarSize: 10
+                    }
                 });
                 
                 editorInitialized = true;
-                console.log('Monaco editor initialized');
+                
+                // FIX: Force layout update after a short delay
+                setTimeout(() => {
+                    if (editor) {
+                        editor.layout();
+                    }
+                }, 100);
+                
+                // FIX: Re-layout on window resize
+                window.addEventListener('resize', () => {
+                    if (editor) {
+                        editor.layout();
+                    }
+                });
                 
                 editor.onDidChangeModelContent(() => {
                     if (socket && isTestActive && testData && currentQuestionIndex < testData.questions.length) {
@@ -998,11 +1191,7 @@
                 
             } catch (error) {
                 console.error('Error loading test:', error);
-                alert('Error loading test: ' + error.message + '\n\nLoading demo mode...');
-                testData = MOCK_TEST_DATA;
-                document.getElementById('test-title').textContent = testData.title + ' (Demo Mode)';
-                document.getElementById('total-count').textContent = testData.questions.length;
-                renderQuestionList();
+                alert('Error loading test: ' + error.message);
             }
         }
         
@@ -1055,17 +1244,13 @@
                 
                 const data = await response.json();
                 sessionId = data.sessionId;
-                console.log('Session started:', sessionId);
                 
                 document.getElementById('info-modal').classList.remove('active');
                 document.getElementById('permissions-modal').classList.add('active');
                 
             } catch (error) {
                 console.error('Error starting test:', error);
-                alert('Error starting test: ' + error.message + '\n\nContinuing in demo mode...');
-                sessionId = 'demo-' + Date.now();
-                document.getElementById('info-modal').classList.remove('active');
-                document.getElementById('permissions-modal').classList.add('active');
+                alert('Error starting test: ' + error.message);
             }
         }
         
@@ -1098,10 +1283,8 @@
             
             if (testData && testData.duration) {
                 timeRemaining = testData.duration * 60;
-                console.log('Test duration set to:', timeRemaining, 'seconds');
             } else {
                 timeRemaining = 3600;
-                console.warn('No test duration found, using default 60 minutes');
             }
             
             isTestActive = true;
@@ -1133,7 +1316,6 @@
                 timeRemaining--;
                 updateTimerDisplay();
                 
-                // FIX #3: Force auto-submit when time runs out
                 if (timeRemaining <= 0) {
                     clearInterval(timerInterval);
                     forceSubmitTest();
@@ -1162,7 +1344,6 @@
             }
         }
         
-        // FIX #3: Force submit without confirmation
         async function forceSubmitTest() {
             console.log('Time expired - forcing submission');
             
@@ -1194,35 +1375,22 @@
                 }
                 
                 const result = await response.json();
-                
-                // Immediately redirect to success page
                 window.location.href = `/success.html?submission=${result.submissionId}&auto=true`;
                 
             } catch (error) {
                 console.error('Error submitting test:', error);
-                document.body.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div style="background: white; padding: 50px; border-radius: 20px; text-align: center;">
-                            <div style="font-size: 60px; margin-bottom: 20px;">⚠️</div>
-                            <h1 style="color: #ff4757;">Submission Error</h1>
-                            <p style="color: #666; margin: 20px 0;">Failed to submit your test. Please contact the administrator.</p>
-                            <p style="color: #999; font-size: 0.9em;">Error: ${error.message}</p>
-                        </div>
-                    </div>
-                `;
+                alert('Failed to submit test. Please contact administrator.');
             }
         }
         
+        // FIX #2: Load question with function signature
         function loadQuestion(index) {
             if (!testData || !testData.questions[index]) {
-                console.error('Question not found');
                 return;
             }
             
             currentQuestionIndex = index;
             const question = testData.questions[index];
-            
-            console.log('Loading question:', index, question.title);
             
             document.querySelectorAll('.question-item').forEach((item, i) => {
                 item.classList.remove('active');
@@ -1230,7 +1398,19 @@
             });
             
             const display = document.getElementById('question-display');
-            let testCasesHTML = '<div class="test-cases-display"><h3>📋 Test Cases:</h3>';
+            
+            // FIX #2: Display function signature if available
+            let functionSignatureHTML = '';
+            if (question.functionName) {
+                functionSignatureHTML = `
+                    <div class="function-signature">
+                        <h4>📝 Function to Implement:</h4>
+                        <code>${question.functionSignature || question.template}</code>
+                    </div>
+                `;
+            }
+            
+            let testCasesHTML = '<div class="test-cases-display"><h3>📋 Example Test Cases:</h3>';
             question.visibleTestCases.forEach((tc, i) => {
                 testCasesHTML += `
                     <div class="test-case-item">
@@ -1240,21 +1420,23 @@
                     </div>
                 `;
             });
+            testCasesHTML += `<p style="color: #888; font-size: 0.9em; margin-top: 15px;">💡 Note: There are additional hidden test cases that will be used for final evaluation.</p>`;
             testCasesHTML += '</div>';
             
             display.innerHTML = `
                 <h2>Question ${index + 1}: ${question.title}</h2>
                 <span class="question-difficulty difficulty-${question.difficulty || 'easy'}">${(question.difficulty || 'easy').toUpperCase()}</span>
                 <p>${question.description}</p>
+                ${functionSignatureHTML}
                 ${testCasesHTML}
             `;
             
             if (editor) {
-                const code = answers[question.id]?.code || question.template || '// Write your code here\n';
+                const code = answers[question.id]?.code || question.template || '// Write your function here\n';
                 editor.setValue(code);
             }
             
-            document.getElementById('output-panel').innerHTML = '<pre>Output will appear here after running tests...</pre>';
+            document.getElementById('output-panel').innerHTML = '<pre>Click "Run Tests" to execute your code against test cases...</pre>';
         }
         
         function changeLanguage() {
@@ -1273,22 +1455,31 @@
             }
         }
         
+        // FIX #2 & #3: Enhanced run code with hidden test cases
         async function runCode() {
             const question = testData.questions[currentQuestionIndex];
             const code = editor.getValue();
             const language = document.getElementById('language-select').value;
             
+            const runBtn = document.getElementById('run-btn');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span class="loading"></span> Running...';
+            
             const outputPanel = document.getElementById('output-panel');
-            outputPanel.innerHTML = '<pre>🔄 Running tests...</pre>';
+            outputPanel.innerHTML = '<pre>🔄 Executing your code...</pre>';
             
             try {
+                // FIX: Pass questionId and sessionId to get hidden test cases
                 const response = await fetch('/api/execute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         code,
                         testCases: question.visibleTestCases,
-                        language
+                        language,
+                        functionName: question.functionName,
+                        questionId: question.id, // FIX: Send question ID to fetch hidden cases
+                        sessionId: sessionId // FIX: Send session ID
                     })
                 });
                 
@@ -1302,59 +1493,114 @@
                     throw new Error(result.error || 'Execution failed');
                 }
                 
-                let output = '';
-                const summary = result.summary || {
-                    passed: result.results.filter(r => r.passed).length,
-                    total: result.results.length
-                };
-                
-                output = `
-                    <div style="padding: 15px; background: #2d2d30; border-bottom: 1px solid #3e3e42; margin-bottom: 10px;">
-                        <strong style="color: ${summary.passed === summary.total ? '#2ed573' : '#ffa502'};">
-                            ${summary.passed} / ${summary.total} Tests Passed
-                        </strong>
-                        ${summary.percentage ? ` (${summary.percentage}%)` : ''}
-                    </div>
-                `;
-                
-                result.results.forEach(r => {
-                    const status = r.passed ? 'passed' : 'failed';
-                    output += `
-                        <div class="test-result ${status}">
-                            <div class="test-result-header">
-                                <strong>Test Case ${r.testCase}</strong>
-                                <span class="test-result-badge badge-${status}">
-                                    ${r.passed ? '✓ PASSED' : '✗ FAILED'}
-                                </span>
-                            </div>
-                            <div class="test-details">
-                                <strong>Input:</strong> <code>${r.input}</code><br>
-                                <strong>Expected:</strong> <code>${r.expectedOutput}</code><br>
-                                <strong>Got:</strong> <code>${r.actualOutput || '(no output)'}</code><br>
-                                ${r.error ? `<strong style="color: #ff4757;">Error:</strong> ${r.error}<br>` : ''}
-                                <strong>Execution Time:</strong> ${r.executionTime.toFixed(2)}ms
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                outputPanel.innerHTML = output;
+                displayTestResults(result);
                 
             } catch (error) {
                 console.error('Execution error:', error);
                 outputPanel.innerHTML = `
                     <div class="test-result failed">
-                        <strong>❌ Execution Error</strong><br>
-                        ${error.message}
+                        <div class="test-result-header">
+                            <strong>❌ Execution Error</strong>
+                        </div>
+                        <div class="test-details">
+                            <div class="error-message">${error.message}</div>
+                        </div>
                     </div>
                 `;
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = '▶ Run Tests';
             }
+        }
+        
+        // FIX #3: Display results including hidden test cases
+        function displayTestResults(result) {
+            const outputPanel = document.getElementById('output-panel');
+            const summary = result.summary;
+            
+            // Determine summary color
+            let summaryClass = 'all-passed';
+            if (summary.passed === 0) {
+                summaryClass = 'all-failed';
+            } else if (summary.passed < summary.total) {
+                summaryClass = 'some-failed';
+            }
+            
+            let output = `
+                <div class="test-results-summary">
+                    <div class="summary-section">
+                        <div class="summary-title">Overall Results</div>
+                        <div class="summary-stats">
+                            <div class="summary-main ${summaryClass}">
+                                ${summary.passed}/${summary.total}
+                            </div>
+                            <div class="summary-detail">
+                                Passed ${summary.percentage}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="summary-section" style="text-align: right;">
+                        <div class="summary-title">Breakdown</div>
+                        <div class="summary-stats" style="justify-content: flex-end;">
+                            <div class="summary-detail">
+                                <span style="color: #2ed573;">✓ ${summary.visiblePassed || 0}</span> Visible<br>
+                                <span style="color: #667eea;">✓ ${summary.hiddenPassed || 0}</span> Hidden
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Display visible test cases
+            result.visibleResults.forEach(r => {
+                const status = r.passed ? 'passed' : 'failed';
+                output += `
+                    <div class="test-result ${status}">
+                        <div class="test-result-header">
+                            <strong>Test Case ${r.testCase} (Visible)</strong>
+                            <span class="test-result-badge badge-${status}">
+                                ${r.passed ? '✓ PASSED' : '✗ FAILED'}
+                            </span>
+                        </div>
+                        <div class="test-details">
+                            <strong>Input:</strong> <code>${r.input}</code><br>
+                            <strong>Expected:</strong> <code>${r.expectedOutput}</code><br>
+                            <strong>Got:</strong> <code>${r.actualOutput || '(no output)'}</code><br>
+                            ${r.error ? `<div class="error-message"><strong>Error:</strong> ${r.error}</div>` : ''}
+                            <strong>Time:</strong> ${r.executionTime.toFixed(2)}ms
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // FIX #3: Display hidden test case results (without showing inputs/outputs)
+            if (result.hiddenResults && result.hiddenResults.length > 0) {
+                result.hiddenResults.forEach(r => {
+                    const status = r.passed ? 'passed' : 'failed';
+                    output += `
+                        <div class="test-result hidden ${status}">
+                            <div class="test-result-header">
+                                <strong>Hidden Test Case ${r.testCase}</strong>
+                                <span class="test-result-badge badge-${status}">
+                                    ${r.passed ? '✓ PASSED' : '✗ FAILED'}
+                                </span>
+                            </div>
+                            <div class="test-details">
+                                <em style="color: #888;">Hidden test case details are not shown</em><br>
+                                ${r.error ? `<div class="error-message"><strong>Error:</strong> ${r.error}</div>` : ''}
+                                <strong>Time:</strong> ${r.executionTime.toFixed(2)}ms
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            outputPanel.innerHTML = output;
         }
         
         function openCustomInput() {
             document.getElementById('custom-input-overlay').classList.add('active');
             document.getElementById('custom-input-field').value = '';
-            document.getElementById('custom-output-field').value = '';
         }
         
         function closeCustomInput() {
@@ -1363,12 +1609,12 @@
         
         async function executeCustomInput() {
             const customInput = document.getElementById('custom-input-field').value;
-            const expectedOutput = document.getElementById('custom-output-field').value;
             const code = editor.getValue();
             const language = document.getElementById('language-select').value;
+            const question = testData.questions[currentQuestionIndex];
             
-            if (!customInput.trim() && !code.trim()) {
-                alert('Please enter some input and code');
+            if (!customInput.trim()) {
+                alert('Please enter input values');
                 return;
             }
             
@@ -1384,7 +1630,8 @@
                     body: JSON.stringify({
                         code,
                         customInput,
-                        language
+                        language,
+                        functionName: question.functionName
                     })
                 });
                 
@@ -1394,27 +1641,29 @@
                 
                 const result = await response.json();
                 
-                const actualOutput = result.output || '';
-                const passed = expectedOutput ? actualOutput.trim() === expectedOutput.trim() : null;
-                
                 let html = `
-                    <div style="padding: 15px; background: #2d2d30; border-bottom: 1px solid #3e3e42; margin-bottom: 10px;">
-                        <strong style="color: #667eea;">⚡ Custom Input Execution</strong>
+                    <div class="test-results-summary">
+                        <div class="summary-section">
+                            <div class="summary-title">Custom Input Execution</div>
+                            <div class="summary-stats">
+                                <div class="summary-main" style="font-size: 1.5em; color: #667eea;">
+                                    ⚡
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="test-result ${passed === true ? 'passed' : passed === false ? 'failed' : result.hasError ? 'failed' : ''}">
+                    <div class="test-result ${result.hasError ? 'failed' : ''}">
                         <div class="test-result-header">
-                            <strong>Custom Test Case</strong>
-                            ${passed !== null ? `<span class="test-result-badge badge-${passed ? 'passed' : 'failed'}">${passed ? '✓ PASSED' : '✗ FAILED'}</span>` : ''}
+                            <strong>Custom Test</strong>
                         </div>
                         <div class="test-details">
                             <strong>Input:</strong><br>
-                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${customInput || '(no input)'}</code><br>
-                            ${expectedOutput ? `<strong>Expected Output:</strong><br><code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${expectedOutput}</code><br>` : ''}
-                            <strong>Actual Output:</strong><br>
-                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${actualOutput || '(no output)'}</code><br>
-                            ${result.stderr ? `<strong style="color: #ff4757;">Error Output:</strong><br><code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px; color: #ff4757;">${result.stderr}</code><br>` : ''}
-                            ${result.error ? `<strong style="color: #ff4757;">Error:</strong> ${result.error}<br>` : ''}
-                            <strong>Execution Time:</strong> ${result.executionTime ? result.executionTime.toFixed(2) + 'ms' : 'N/A'}
+                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${customInput}</code><br>
+                            <strong>Output:</strong><br>
+                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${result.output || '(no output)'}</code><br>
+                            ${result.stderr ? `<div class="error-message"><strong>Error:</strong><br>${result.stderr}</div>` : ''}
+                            ${result.error ? `<div class="error-message"><strong>Error:</strong> ${result.error}</div>` : ''}
+                            <strong>Time:</strong> ${result.executionTime ? result.executionTime.toFixed(2) + 'ms' : 'N/A'}
                         </div>
                     </div>
                 `;
@@ -1437,7 +1686,7 @@
             const code = editor.getValue();
             const language = document.getElementById('language-select').value;
             
-            if (!code.trim() || code.trim() === '// Write your code here') {
+            if (!code.trim() || code.trim() === '// Write your function here') {
                 if (!confirm('Your code appears to be empty. Submit anyway?')) {
                     return;
                 }
@@ -1465,7 +1714,6 @@
         async function submitTest() {
             const submitBtn = document.getElementById('submit-test-btn');
             if (submitBtn.disabled) {
-                console.log('Submit already in progress');
                 return;
             }
             
@@ -1607,67 +1855,17 @@
                     document.getElementById('focus-status').style.background = '#2ed573';
                 }
             });
-            
-            window.addEventListener('blur', () => {
-                if (isTestActive) {
-                    document.getElementById('focus-status').style.background = '#ffa502';
-                }
-            });
-            
-            window.addEventListener('focus', () => {
-                if (isTestActive) {
-                    document.getElementById('focus-status').style.background = '#2ed573';
-                }
-            });
         }
         
-        document.addEventListener('copy', (e) => {
-            if (isTestActive) {
-                e.preventDefault();
-                alert('⚠️ Copying is disabled during the test');
-                return false;
-            }
-        });
-        
-        document.addEventListener('cut', (e) => {
-            if (isTestActive) {
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        document.addEventListener('contextmenu', (e) => {
-            if (isTestActive) {
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        document.addEventListener('keydown', (e) => {
-            if (isTestActive) {
-                if (e.keyCode === 123 || 
-                    (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
-                    (e.ctrlKey && e.keyCode === 85)) {
-                    e.preventDefault();
-                    return false;
-                }
-            }
-        });
-        
         window.addEventListener('load', () => {
-            console.log('Page loaded, initializing Monaco editor...');
             initMonacoEditor();
+            initResizeHandles();
             
             if (testId) {
                 loadTest();
-            } else {
-                console.log('No test ID, loading mock data');
-                testData = MOCK_TEST_DATA;
-                document.getElementById('test-title').textContent = testData.title + ' (Demo Mode)';
-                document.getElementById('total-count').textContent = testData.questions.length;
-                renderQuestionList();
             }
         });
     </script>
 </body>
 </html>
+//Error: Main.java.java:2: error: package com.google.gson does not exist import com.google.gson.Gson; ^ 1 error error: compilation failed

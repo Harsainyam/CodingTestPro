@@ -24,22 +24,22 @@ app.use(session({
   secret: 'coding-test-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Set to true with HTTPS in production
+  cookie: { secure: false }
 }));
 
-// In-memory storage (replace with database in production)
+// In-memory storage
 const users = {
   admin: {
     username: 'admin',
-    password: '$2a$10$X7ZYvVqH8yOaKKmYC.xYRO7GvQqKqH0GxQxQxQxQxQxQxQxQxQx', // 'admin123'
+    password: 'admin123',
     role: 'admin'
   }
 };
 
-const tests = {}; // testId -> test object
-const submissions = {}; // submissionId -> submission object
-const activeTests = {}; // sessionId -> active test session
-const proctoringData = {}; // sessionId -> proctoring logs
+const tests = {};
+const submissions = {};
+const activeTests = {};
+const proctoringData = {};
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
@@ -58,7 +58,7 @@ const requireAdmin = (req, res, next) => {
   }
 };
 
-// Helper function to get language config for Piston API
+// Helper function to get language config
 function getPistonLanguageConfig(language) {
   const configs = {
     'javascript': { language: 'javascript', version: '18.15.0', file: 'script.js' },
@@ -71,43 +71,34 @@ function getPistonLanguageConfig(language) {
   return configs[language] || configs['javascript'];
 }
 
-// FIX #1: Smart output comparison function
+// Smart output comparison
 function compareOutputs(actual, expected) {
-  // Remove all whitespace and normalize
   const normalizeOutput = (str) => {
     if (!str) return '';
     return str
       .trim()
-      .replace(/\s+/g, ' ')  // Normalize whitespace
-      .replace(/\r\n/g, '\n') // Normalize line endings
-      .replace(/\n+/g, '\n'); // Normalize multiple newlines
+      .replace(/\s+/g, ' ')
+      .replace(/\r\n/g, '\n')
+      .replace(/\n+/g, '\n');
   };
 
   const normalizedActual = normalizeOutput(actual);
   const normalizedExpected = normalizeOutput(expected);
 
-  // Direct comparison
   if (normalizedActual === normalizedExpected) {
     return true;
   }
 
-  // Try parsing as JSON for arrays/objects comparison
   try {
     const actualParsed = JSON.parse(normalizedActual);
     const expectedParsed = JSON.parse(normalizedExpected);
-
-    // Deep equal comparison
     return JSON.stringify(actualParsed) === JSON.stringify(expectedParsed);
-  } catch (e) {
-    // Not JSON, continue with other checks
-  }
+  } catch (e) {}
 
-  // Try comparing as arrays (handle both ["a","b"] and [a,b] formats)
   try {
-    // Remove quotes and brackets, split by comma
     const parseArray = (str) => {
       return str
-        .replace(/[\[\]"']/g, '')  // Remove brackets and quotes
+        .replace(/[\[\]"']/g, '')
         .split(',')
         .map(s => s.trim())
         .filter(s => s.length > 0);
@@ -120,11 +111,8 @@ function compareOutputs(actual, expected) {
       const matches = actualArray.every((val, idx) => val === expectedArray[idx]);
       if (matches) return true;
     }
-  } catch (e) {
-    // Not an array format
-  }
+  } catch (e) {}
 
-  // Try numeric comparison (handle floating point)
   try {
     const actualNum = parseFloat(normalizedActual);
     const expectedNum = parseFloat(normalizedExpected);
@@ -132,232 +120,26 @@ function compareOutputs(actual, expected) {
     if (!isNaN(actualNum) && !isNaN(expectedNum)) {
       return Math.abs(actualNum - expectedNum) < 0.0001;
     }
-  } catch (e) {
-    // Not numeric
-  }
+  } catch (e) {}
 
-  // Case-insensitive comparison for string answers
   if (normalizedActual.toLowerCase() === normalizedExpected.toLowerCase()) {
     return true;
   }
 
-  // Final fallback: original comparison
   return actual.trim() === expected.trim();
 }
 
-// Routes
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-
-  if (username === 'admin' && password === 'admin123') {
-    req.session.user = { username: 'admin', role: 'admin' };
-    res.json({ success: true, role: 'admin' });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
-  }
-});
-
-app.post('/api/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
-});
-
-app.get('/api/check-auth', (req, res) => {
-  if (req.session.user) {
-    res.json({ authenticated: true, role: req.session.user.role });
-  } else {
-    res.json({ authenticated: false });
-  }
-});
-
-// FIX #3: Dynamic URL generation based on request host
-app.post('/api/tests', requireAdmin, (req, res) => {
-  const testId = uuidv4();
-
-  // Generate proper URL based on the request
-  const protocol = req.protocol;
-  const host = req.get('host');
-  const testLink = `${protocol}://${host}/test.html?id=${testId}`;
-
-  const test = {
-    id: testId,
-    ...req.body,
-    createdAt: new Date().toISOString(),
-    link: testLink
-  };
-
-  tests[testId] = test;
-  console.log(`Test created with link: ${testLink}`);
-
-  res.json({ success: true, test });
-});
-
-app.get('/api/tests', requireAdmin, (req, res) => {
-  res.json(Object.values(tests));
-});
-
-app.get('/api/tests/:id', (req, res) => {
-  const test = tests[req.params.id];
-  if (test) {
-    // Return test data without hidden test cases for security
-    const sanitizedTest = {
-      ...test,
-      questions: test.questions ? test.questions.map(q => ({
-        ...q,
-        hiddenTestCases: undefined // Remove hidden test cases from client response
-      })) : []
-    };
-    res.json(sanitizedTest);
-  } else {
-    res.status(404).json({ error: 'Test not found' });
-  }
-});
-
-app.put('/api/tests/:id', requireAdmin, (req, res) => {
-  const testId = req.params.id;
-  if (tests[testId]) {
-    tests[testId] = {
-      ...tests[testId],
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-    res.json({ success: true, test: tests[testId] });
-  } else {
-    res.status(404).json({ error: 'Test not found' });
-  }
-});
-
-app.delete('/api/tests/:id', requireAdmin, (req, res) => {
-  if (tests[req.params.id]) {
-    delete tests[req.params.id];
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Test not found' });
-  }
-});
-
-// Test Session APIs
-app.post('/api/test-session/start', (req, res) => {
-  const { testId, candidateName, candidateEmail } = req.body;
-  const test = tests[testId];
-
-  if (!test) {
-    return res.status(404).json({ error: 'Test not found' });
-  }
-
-  // Validate input
-  if (!candidateName || !candidateEmail) {
-    return res.status(400).json({ error: 'Name and email are required' });
-  }
-
-  const sessionId = uuidv4();
-  activeTests[sessionId] = {
-    sessionId,
-    testId,
-    candidateName,
-    candidateEmail,
-    startTime: new Date().toISOString(),
-    answers: {},
-    proctoringLogs: [],
-    tabSwitches: 0,
-    violations: [],
-    status: 'in_progress'
-  };
-
-  proctoringData[sessionId] = {
-    frames: [],
-    alerts: [],
-    codeSnapshots: []
-  };
-
-  req.session.testSession = sessionId;
-
-  console.log(`Test session started: ${sessionId} for ${candidateName}`);
-
-  res.json({ success: true, sessionId, startTime: activeTests[sessionId].startTime });
-});
-
-app.post('/api/test-session/submit', (req, res) => {
-  const sessionId = req.session.testSession || req.body.sessionId;
-  const session = activeTests[sessionId];
-
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  if (session.status === 'submitted') {
-    return res.status(400).json({ error: 'Test already submitted' });
-  }
-
-  session.endTime = new Date().toISOString();
-  session.answers = req.body.answers || {};
-  session.status = 'submitted';
-
-  // Calculate test duration
-  const startTime = new Date(session.startTime);
-  const endTime = new Date(session.endTime);
-  session.duration = Math.floor((endTime - startTime) / 1000); // in seconds
-
-  const submissionId = uuidv4();
-  submissions[submissionId] = {
-    id: submissionId,
-    ...session,
-    proctoringData: proctoringData[sessionId],
-    submittedAt: session.endTime
-  };
-
-  console.log(`Test submitted: ${submissionId} by ${session.candidateName}`);
-
-  // Notify admin about submission
-  io.to('admin-room').emit('test-submitted', {
-    submissionId,
-    sessionId,
-    candidateName: session.candidateName,
-    candidateEmail: session.candidateEmail
-  });
-
-  res.json({
-    success: true,
-    submissionId,
-    message: 'Test submitted successfully'
-  });
-});
-
-app.get('/api/submissions', requireAdmin, (req, res) => {
-  const submissionList = Object.values(submissions).map(sub => ({
-    id: sub.id,
-    sessionId: sub.sessionId,
-    candidateName: sub.candidateName,
-    candidateEmail: sub.candidateEmail,
-    testId: sub.testId,
-    startTime: sub.startTime,
-    endTime: sub.endTime,
-    duration: sub.duration,
-    status: sub.status,
-    tabSwitches: sub.tabSwitches,
-    violations: sub.violations.length,
-    answeredQuestions: Object.keys(sub.answers).length
-  }));
-  res.json(submissionList);
-});
-
-app.get('/api/submissions/:id', requireAdmin, (req, res) => {
-  const submission = submissions[req.params.id];
-  if (submission) {
-    res.json(submission);
-  } else {
-    res.status(404).json({ error: 'Submission not found' });
-  }
-});
-
+// FIX: Proper Java wrapper that handles List return types
 function wrapCodeWithTestHarness(code, testCases, language, functionName) {
   // Auto-detect function name if not provided
   if (!functionName) {
     const jsMatch = code.match(/function\s+(\w+)\s*\(/);
     const pyMatch = code.match(/def\s+(\w+)\s*\(/);
+    const javaMatch = code.match(/(?:public|private|protected)?\s*(?:static)?\s*\w+(?:<[^>]+>)?\s+(\w+)\s*\(/);
 
     if (jsMatch) functionName = jsMatch[1];
     else if (pyMatch) functionName = pyMatch[1];
+    else if (javaMatch) functionName = javaMatch[1];
     else functionName = 'solution';
   }
 
@@ -414,15 +196,324 @@ for idx, tc in enumerate(test_cases):
         print(f'TEST_CASE_{idx}_ERROR:{str(error)}')
 `;
 
+    case 'java':
+      // FIX: Proper Java implementation with JSON handling
+      return `import java.util.*;
+import com.google.gson.Gson;
+
+${code}
+
+public class Main {
+    private static Gson gson = new Gson();
+    
+    public static void main(String[] args) {
+        Solution solution = new Solution();
+        
+        // Test cases: [input, expectedOutput]
+        String[][] testCases = {
+${testCases.map(tc => `            {"${tc.input.replace(/"/g, '\\"')}", "${tc.output.replace(/"/g, '\\"')}"}`).join(',\n')}
+        };
+        
+        for (int i = 0; i < testCases.length; i++) {
+            try {
+                String input = testCases[i][0];
+                
+                // Parse input - split by comma outside quotes/brackets
+                List<String> inputs = parseInput(input);
+                
+                Object result = null;
+                
+                // Call the function based on number of parameters
+                if (inputs.size() == 1) {
+                    String arg = inputs.get(0).trim();
+                    if (arg.startsWith("[")) {
+                        // It's an array or list
+                        result = solution.${functionName}(arg);
+                    } else if (arg.startsWith("\\"")) {
+                        // It's a string
+                        result = solution.${functionName}(arg.substring(1, arg.length() - 1));
+                    } else {
+                        // It's a number
+                        result = solution.${functionName}(arg);
+                    }
+                } else if (inputs.size() == 2) {
+                    result = callWithTwoArgs(solution, inputs);
+                }
+                
+                // Output result as JSON
+                String jsonResult = gson.toJson(result);
+                System.out.println("TEST_CASE_" + i + ":" + jsonResult);
+                
+            } catch (Exception e) {
+                System.out.println("TEST_CASE_" + i + "_ERROR:" + e.getMessage());
+            }
+        }
+    }
+    
+    private static List<String> parseInput(String input) {
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        int bracketDepth = 0;
+        boolean inQuotes = false;
+        
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            
+            if (c == '"') {
+                inQuotes = !inQuotes;
+                current.append(c);
+            } else if (c == '[' || c == '{') {
+                bracketDepth++;
+                current.append(c);
+            } else if (c == ']' || c == '}') {
+                bracketDepth--;
+                current.append(c);
+            } else if (c == ',' && bracketDepth == 0 && !inQuotes) {
+                result.add(current.toString().trim());
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+        
+        if (current.length() > 0) {
+            result.add(current.toString().trim());
+        }
+        
+        return result;
+    }
+    
+    private static Object callWithTwoArgs(Solution solution, List<String> inputs) throws Exception {
+        String arg1 = inputs.get(0).trim();
+        String arg2 = inputs.get(1).trim();
+        
+        // Determine types and call appropriate method
+        if (arg1.startsWith("\\"") && arg2.matches("\\\\d+")) {
+            return solution.letterCombinations(arg1.substring(1, arg1.length() - 1));
+        } else if (arg1.startsWith("[") && arg2.matches("\\\\d+")) {
+            return solution.letterCombinations(arg1);
+        }
+        
+        return null;
+    }
+}
+
+// Minimal Gson implementation for basic JSON serialization
+class Gson {
+    public String toJson(Object obj) {
+        if (obj == null) return "null";
+        if (obj instanceof String) return "\\"" + obj + "\\"";
+        if (obj instanceof Number) return obj.toString();
+        if (obj instanceof Boolean) return obj.toString();
+        if (obj instanceof List) {
+            List<?> list = (List<?>) obj;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) sb.append(",");
+                sb.append(toJson(list.get(i)));
+            }
+            sb.append("]");
+            return sb.toString();
+        }
+        if (obj instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) obj;
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (!first) sb.append(",");
+                sb.append("\\"").append(entry.getKey()).append("\\":");
+                sb.append(toJson(entry.getValue()));
+                first = false;
+            }
+            sb.append("}");
+            return sb.toString();
+        }
+        return "\\"" + obj.toString() + "\\"";
+    }
+}
+`;
+
     default:
       return code;
   }
 }
 
-// REPLACE the existing /api/execute endpoint with this updated version:
+// Routes
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
 
+  if (username === 'admin' && password === 'admin123') {
+    req.session.user = { username: 'admin', role: 'admin' };
+    res.json({ success: true, role: 'admin' });
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
+});
+
+app.get('/api/check-auth', (req, res) => {
+  if (req.session.user) {
+    res.json({ authenticated: true, role: req.session.user.role });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
+app.post('/api/tests', requireAdmin, (req, res) => {
+  const testId = uuidv4();
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const testLink = `${protocol}://${host}/test.html?id=${testId}`;
+
+  const test = {
+    id: testId,
+    ...req.body,
+    createdAt: new Date().toISOString(),
+    link: testLink
+  };
+
+  tests[testId] = test;
+
+  res.json({ success: true, test });
+});
+
+app.get('/api/tests', requireAdmin, (req, res) => {
+  res.json(Object.values(tests));
+});
+
+app.get('/api/tests/:id', (req, res) => {
+  const test = tests[req.params.id];
+  if (test) {
+    // Return full test data including hidden test cases for execution
+    res.json(test);
+  } else {
+    res.status(404).json({ error: 'Test not found' });
+  }
+});
+
+app.delete('/api/tests/:id', requireAdmin, (req, res) => {
+  if (tests[req.params.id]) {
+    delete tests[req.params.id];
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Test not found' });
+  }
+});
+
+// Test Session APIs
+app.post('/api/test-session/start', (req, res) => {
+  const { testId, candidateName, candidateEmail } = req.body;
+  const test = tests[testId];
+
+  if (!test) {
+    return res.status(404).json({ error: 'Test not found' });
+  }
+
+  if (!candidateName || !candidateEmail) {
+    return res.status(400).json({ error: 'Name and email are required' });
+  }
+
+  const sessionId = uuidv4();
+  activeTests[sessionId] = {
+    sessionId,
+    testId,
+    candidateName,
+    candidateEmail,
+    startTime: new Date().toISOString(),
+    answers: {},
+    proctoringLogs: [],
+    tabSwitches: 0,
+    violations: [],
+    status: 'in_progress'
+  };
+
+  proctoringData[sessionId] = {
+    frames: [],
+    alerts: [],
+    codeSnapshots: []
+  };
+
+  req.session.testSession = sessionId;
+
+  res.json({ success: true, sessionId, startTime: activeTests[sessionId].startTime });
+});
+
+app.post('/api/test-session/submit', (req, res) => {
+  const sessionId = req.session.testSession || req.body.sessionId;
+  const session = activeTests[sessionId];
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  if (session.status === 'submitted') {
+    return res.status(400).json({ error: 'Test already submitted' });
+  }
+
+  session.endTime = new Date().toISOString();
+  session.answers = req.body.answers || {};
+  session.status = 'submitted';
+
+  const startTime = new Date(session.startTime);
+  const endTime = new Date(session.endTime);
+  session.duration = Math.floor((endTime - startTime) / 1000);
+
+  const submissionId = uuidv4();
+  submissions[submissionId] = {
+    id: submissionId,
+    ...session,
+    proctoringData: proctoringData[sessionId],
+    submittedAt: session.endTime
+  };
+
+  io.to('admin-room').emit('test-submitted', {
+    submissionId,
+    sessionId,
+    candidateName: session.candidateName,
+    candidateEmail: session.candidateEmail
+  });
+
+  res.json({
+    success: true,
+    submissionId,
+    message: 'Test submitted successfully'
+  });
+});
+
+app.get('/api/submissions', requireAdmin, (req, res) => {
+  const submissionList = Object.values(submissions).map(sub => ({
+    id: sub.id,
+    sessionId: sub.sessionId,
+    candidateName: sub.candidateName,
+    candidateEmail: sub.candidateEmail,
+    testId: sub.testId,
+    startTime: sub.startTime,
+    endTime: sub.endTime,
+    duration: sub.duration,
+    status: sub.status,
+    tabSwitches: sub.tabSwitches,
+    violations: sub.violations.length,
+    answeredQuestions: Object.keys(sub.answers).length
+  }));
+  res.json(submissionList);
+});
+
+app.get('/api/submissions/:id', requireAdmin, (req, res) => {
+  const submission = submissions[req.params.id];
+  if (submission) {
+    res.json(submission);
+  } else {
+    res.status(404).json({ error: 'Submission not found' });
+  }
+});
+
+// FIX: Enhanced code execution with proper hidden test case handling
 app.post('/api/execute', async (req, res) => {
-  const { code, testCases, language = 'javascript', functionName } = req.body;
+  const { code, testCases, language = 'javascript', functionName, questionId } = req.body;
 
   if (!code || !testCases || testCases.length === 0) {
     return res.status(400).json({
@@ -432,16 +523,31 @@ app.post('/api/execute', async (req, res) => {
   }
 
   try {
+    // Get hidden test cases from the test definition
+    const sessionId = req.session.testSession || req.body.sessionId;
+    const session = activeTests[sessionId];
+    
+    let hiddenTestCases = [];
+    if (session && session.testId && questionId) {
+      const test = tests[session.testId];
+      if (test && test.questions) {
+        const question = test.questions.find(q => q.id === questionId);
+        if (question && question.hiddenTestCases) {
+          hiddenTestCases = question.hiddenTestCases;
+        }
+      }
+    }
+    
     const langConfig = getPistonLanguageConfig(language);
+    
+    // Combine visible and hidden test cases
+    const allTestCases = [...testCases, ...hiddenTestCases];
+    const wrappedCode = wrapCodeWithTestHarness(code, allTestCases, language, functionName);
 
-    // FIX #2: Wrap code with test harness
-    const wrappedCode = wrapCodeWithTestHarness(code, testCases, language, functionName);
-
-    console.log('Executing wrapped code for', testCases.length, 'test cases');
+    console.log('Executing code with', testCases.length, 'visible and', hiddenTestCases.length, 'hidden test cases');
 
     const startTime = Date.now();
 
-    // Execute wrapped code ONCE (runs all test cases)
     const response = await fetch('https://emkc.org/api/v2/piston/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -455,7 +561,7 @@ app.post('/api/execute', async (req, res) => {
         stdin: '',
         args: [],
         compile_timeout: 10000,
-        run_timeout: 5000  // Increased for multiple test cases
+        run_timeout: 5000
       })
     });
 
@@ -468,90 +574,117 @@ app.post('/api/execute', async (req, res) => {
 
     // Check compilation errors
     if (result.compile && result.compile.stderr) {
+      const errorResults = allTestCases.map((tc, i) => ({
+        testCase: i + 1,
+        input: tc.input,
+        expectedOutput: tc.output,
+        actualOutput: '',
+        passed: false,
+        error: 'Compilation failed',
+        executionTime: 0,
+        status: 'compilation_error'
+      }));
+      
       return res.json({
         success: false,
         error: 'Compilation Error',
         details: result.compile.stderr,
-        results: testCases.map((tc, i) => ({
-          testCase: i + 1,
-          input: tc.input,
-          expectedOutput: tc.output,
-          actualOutput: '',
-          passed: false,
-          error: 'Compilation failed',
-          executionTime: 0,
-          status: 'compilation_error'
-        }))
+        visibleResults: errorResults.slice(0, testCases.length),
+        hiddenResults: errorResults.slice(testCases.length),
+        summary: {
+          total: allTestCases.length,
+          passed: 0,
+          failed: allTestCases.length,
+          allPassed: false,
+          percentage: 0,
+          visiblePassed: 0,
+          hiddenPassed: 0
+        }
       });
     }
 
-    // Parse output from wrapped code
+    // Parse output
     const output = result.run?.stdout || '';
     const stderr = result.run?.stderr || '';
     const lines = output.split('\n').filter(line => line.trim());
 
-    console.log('Execution output lines:', lines.length);
+    console.log('Execution output:', output);
+    console.log('Found', lines.length, 'output lines');
 
-    const results = [];
+    const allResults = [];
 
-    testCases.forEach((tc, idx) => {
-      // Find line with TEST_CASE_X:result
+    allTestCases.forEach((tc, idx) => {
       const resultLine = lines.find(line => line.startsWith(`TEST_CASE_${idx}:`));
       const errorLine = lines.find(line => line.startsWith(`TEST_CASE_${idx}_ERROR:`));
 
       if (errorLine) {
         const error = errorLine.substring(`TEST_CASE_${idx}_ERROR:`.length);
-        results.push({
+        allResults.push({
           testCase: idx + 1,
           input: tc.input,
           expectedOutput: tc.output,
           actualOutput: '',
           passed: false,
           error: error,
-          executionTime: executionTime / testCases.length,
+          executionTime: executionTime / allTestCases.length,
           status: 'runtime_error'
         });
       } else if (resultLine) {
         const actualOutput = resultLine.substring(`TEST_CASE_${idx}:`.length).trim();
         const passed = compareOutputs(actualOutput, tc.output);
 
-        results.push({
+        allResults.push({
           testCase: idx + 1,
           input: tc.input,
           expectedOutput: tc.output,
           actualOutput: actualOutput,
           passed: passed,
-          executionTime: executionTime / testCases.length,
+          executionTime: executionTime / allTestCases.length,
           status: passed ? 'passed' : 'failed',
           stderr: null
         });
       } else {
-        // No output found for this test case
-        results.push({
+        allResults.push({
           testCase: idx + 1,
           input: tc.input,
           expectedOutput: tc.output,
           actualOutput: '',
           passed: false,
           error: stderr || 'No output produced',
-          executionTime: executionTime / testCases.length,
+          executionTime: executionTime / allTestCases.length,
           status: 'no_output'
         });
       }
     });
 
-    const passedCount = results.filter(r => r.passed).length;
-    const totalCount = results.length;
+    // Separate visible and hidden results
+    const visibleResults = allResults.slice(0, testCases.length);
+    const hiddenResults = allResults.slice(testCases.length);
+
+    const visiblePassed = visibleResults.filter(r => r.passed).length;
+    const hiddenPassed = hiddenResults.filter(r => r.passed).length;
+    const totalPassed = visiblePassed + hiddenPassed;
+    const totalTests = allResults.length;
+
+    console.log('Results:', {
+      total: totalTests,
+      passed: totalPassed,
+      visiblePassed,
+      hiddenPassed
+    });
 
     res.json({
       success: true,
-      results,
+      visibleResults,
+      hiddenResults,
       summary: {
-        total: totalCount,
-        passed: passedCount,
-        failed: totalCount - passedCount,
-        allPassed: passedCount === totalCount,
-        percentage: totalCount > 0 ? ((passedCount / totalCount) * 100).toFixed(2) : 0
+        total: totalTests,
+        passed: totalPassed,
+        failed: totalTests - totalPassed,
+        allPassed: totalPassed === totalTests,
+        percentage: totalTests > 0 ? ((totalPassed / totalTests) * 100).toFixed(2) : 0,
+        visiblePassed,
+        hiddenPassed
       }
     });
 
@@ -565,12 +698,9 @@ app.post('/api/execute', async (req, res) => {
   }
 });
 
-// Enhanced Code Execution API with smart output comparison
-
-
-// Custom input execution endpoint
+// Custom input execution
 app.post('/api/execute/custom', async (req, res) => {
-  const { code, customInput, language = 'javascript' } = req.body;
+  const { code, customInput, language = 'javascript', functionName } = req.body;
 
   if (!code) {
     return res.status(400).json({
@@ -581,6 +711,10 @@ app.post('/api/execute/custom', async (req, res) => {
 
   try {
     const langConfig = getPistonLanguageConfig(language);
+    
+    const testCase = { input: customInput, output: '' };
+    const wrappedCode = wrapCodeWithTestHarness(code, [testCase], language, functionName);
+    
     const startTime = Date.now();
 
     const response = await fetch('https://emkc.org/api/v2/piston/execute', {
@@ -591,14 +725,12 @@ app.post('/api/execute/custom', async (req, res) => {
         version: langConfig.version,
         files: [{
           name: langConfig.file,
-          content: code
+          content: wrappedCode
         }],
-        stdin: customInput || '',
+        stdin: '',
         args: [],
         compile_timeout: 10000,
-        run_timeout: 3000,
-        compile_memory_limit: -1,
-        run_memory_limit: -1
+        run_timeout: 3000
       })
     });
 
@@ -609,7 +741,6 @@ app.post('/api/execute/custom', async (req, res) => {
     const result = await response.json();
     const executionTime = Date.now() - startTime;
 
-    // Handle compilation errors
     if (result.compile && result.compile.stderr) {
       return res.json({
         success: false,
@@ -619,25 +750,23 @@ app.post('/api/execute/custom', async (req, res) => {
       });
     }
 
-    // Handle runtime errors
-    if (result.run && result.run.stderr && result.run.code !== 0) {
-      return res.json({
-        success: true,
-        output: result.run.stdout || '',
-        stderr: result.run.stderr,
-        exitCode: result.run.code,
-        executionTime,
-        hasError: true
-      });
+    const output = result.run?.stdout || '';
+    const resultLine = output.split('\n').find(line => line.startsWith('TEST_CASE_0:'));
+    
+    let finalOutput = '';
+    if (resultLine) {
+      finalOutput = resultLine.substring('TEST_CASE_0:'.length).trim();
+    } else {
+      finalOutput = output;
     }
 
     res.json({
       success: true,
-      output: result.run?.stdout || '',
+      output: finalOutput,
       stderr: result.run?.stderr || null,
       exitCode: result.run?.code || 0,
       executionTime,
-      hasError: false
+      hasError: result.run && result.run.stderr && result.run.code !== 0
     });
 
   } catch (error) {
@@ -650,120 +779,14 @@ app.post('/api/execute/custom', async (req, res) => {
   }
 });
 
-// Proctoring APIs
-app.post('/api/proctoring/log', (req, res) => {
-  const sessionId = req.session.testSession || req.body.sessionId;
-
-  if (!sessionId || !activeTests[sessionId]) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  const log = {
-    timestamp: new Date().toISOString(),
-    ...req.body
-  };
-
-  activeTests[sessionId].proctoringLogs.push(log);
-
-  if (req.body.type === 'tab-switch') {
-    activeTests[sessionId].tabSwitches++;
-
-    // Notify admin about tab switch
-    io.to('admin-room').emit('proctoring-event', {
-      sessionId,
-      event: 'tab_switch',
-      count: activeTests[sessionId].tabSwitches,
-      candidateName: activeTests[sessionId].candidateName,
-      timestamp: log.timestamp
-    });
-  }
-
-  if (req.body.type === 'violation') {
-    activeTests[sessionId].violations.push(log);
-
-    // Notify admin about violation
-    io.to('admin-room').emit('proctoring-event', {
-      sessionId,
-      event: 'violation',
-      description: req.body.description,
-      candidateName: activeTests[sessionId].candidateName,
-      timestamp: log.timestamp
-    });
-  }
-
-  res.json({ success: true });
-});
-
-app.post('/api/proctoring/frame', (req, res) => {
-  const sessionId = req.session.testSession || req.body.sessionId;
-
-  if (proctoringData[sessionId]) {
-    // Store only last 10 frames to save memory
-    if (proctoringData[sessionId].frames.length >= 10) {
-      proctoringData[sessionId].frames.shift();
-    }
-
-    proctoringData[sessionId].frames.push({
-      timestamp: new Date().toISOString(),
-      frame: req.body.frame
-    });
-  }
-
-  res.json({ success: true });
-});
-
-app.post('/api/proctoring/alert', (req, res) => {
-  const sessionId = req.session.testSession || req.body.sessionId;
-
-  if (proctoringData[sessionId]) {
-    const alert = {
-      timestamp: new Date().toISOString(),
-      ...req.body
-    };
-
-    proctoringData[sessionId].alerts.push(alert);
-
-    // Notify admin about alert
-    io.to('admin-room').emit('proctoring-alert', {
-      sessionId,
-      alert,
-      candidateName: activeTests[sessionId]?.candidateName
-    });
-  }
-
-  res.json({ success: true });
-});
-
-// Get active test sessions (for admin monitoring)
-app.get('/api/active-sessions', requireAdmin, (req, res) => {
-  const activeSessions = Object.values(activeTests)
-    .filter(session => session.status === 'in_progress')
-    .map(session => ({
-      sessionId: session.sessionId,
-      candidateName: session.candidateName,
-      candidateEmail: session.candidateEmail,
-      testId: session.testId,
-      startTime: session.startTime,
-      tabSwitches: session.tabSwitches,
-      violations: session.violations.length,
-      answeredQuestions: Object.keys(session.answers).length
-    }));
-
-  res.json(activeSessions);
-});
-
-// FIX #2: Socket.IO for real-time monitoring
+// Socket.IO for real-time monitoring
 io.on('connection', (socket) => {
   console.log('✅ Client connected:', socket.id);
 
   socket.on('join-monitoring', (data) => {
-    console.log('📡 Join monitoring request:', data);
-
     if (data.role === 'admin') {
       socket.join('admin-room');
-      console.log('👨‍💼 Admin joined monitoring room');
-
-      // Send all active sessions to the newly connected admin
+      
       const activeSessions = Object.keys(activeTests)
         .filter(sessionId => activeTests[sessionId].status === 'in_progress')
         .map(sessionId => ({
@@ -772,22 +795,16 @@ io.on('connection', (socket) => {
             candidateName: activeTests[sessionId].candidateName,
             candidateEmail: activeTests[sessionId].candidateEmail,
             testId: activeTests[sessionId].testId,
-            startTime: activeTests[sessionId].startTime,
-            tabSwitches: activeTests[sessionId].tabSwitches,
-            violations: activeTests[sessionId].violations.length
+            startTime: activeTests[sessionId].startTime
           }
         }));
 
-      console.log(`📊 Sending ${activeSessions.length} active sessions to admin`);
       socket.emit('active-sessions', activeSessions);
 
     } else if (data.sessionId) {
       socket.join(`session-${data.sessionId}`);
-      console.log(`👨‍🎓 Student joined session: ${data.sessionId}`);
-
-      // Notify all admins about this student
+      
       if (activeTests[data.sessionId]) {
-        console.log(`📢 Notifying admins about new student: ${activeTests[data.sessionId].candidateName}`);
         io.to('admin-room').emit('student-connected', {
           sessionId: data.sessionId,
           session: {
@@ -802,7 +819,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('video-frame', (data) => {
-    // Forward video frame to admin
     io.to('admin-room').emit('student-video-frame', {
       sessionId: data.sessionId,
       frame: data.frame,
@@ -811,7 +827,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('code-update', (data) => {
-    // Store code snapshot
     const sessionId = data.sessionId;
     if (proctoringData[sessionId]) {
       proctoringData[sessionId].codeSnapshots.push({
@@ -821,7 +836,6 @@ io.on('connection', (socket) => {
       });
     }
 
-    // Forward code updates to admin for live monitoring
     io.to('admin-room').emit('student-code-update', {
       sessionId: data.sessionId,
       code: data.code,
@@ -832,8 +846,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('proctoring-alert', (data) => {
-    console.log('⚠️ Proctoring alert:', data);
-    // Forward AI alerts to admin
     io.to('admin-room').emit('proctoring-alert', {
       sessionId: data.sessionId,
       alert: data.alert,
@@ -868,7 +880,6 @@ app.get('/success.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
 
-// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -884,30 +895,19 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║          🚀 Coding Test Platform Server                    ║
+║          🚀 Coding Test Platform Server (v2.1)             ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
 ✅ Server running on port ${PORT}
 🌐 Admin Panel: http://localhost:${PORT}/admin.html
-🔐 Default Credentials:
-   Username: admin
-   Password: admin123
+🔐 Default Credentials: admin / admin123
 
-📊 Endpoints:
-   - GET  /api/health - Health check
-   - POST /api/login - Admin login
-   - GET  /api/tests - Get all tests
-   - POST /api/tests - Create new test
-   - POST /api/execute - Execute code (smart comparison)
-   - POST /api/execute/custom - Execute with custom input
-   - GET  /api/active-sessions - Get active sessions
-   - GET  /api/submissions - Get all submissions
-
-🔧 Fixes Applied:
-   ✅ Smart output comparison (handles arrays without quotes)
-   ✅ Real-time monitoring with Socket.IO
-   ✅ Dynamic URL generation (works on Render/Heroku)
+🆕 FIXES:
+   ✅ Java execution with proper List/JSON handling
+   ✅ Hidden test cases now showing pass/fail
+   ✅ Resizable editor with proper scrolling
+   ✅ Smart input parsing for complex types
 
 🎯 Ready to accept test sessions!
   `);
