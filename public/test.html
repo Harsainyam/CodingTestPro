@@ -83,6 +83,7 @@
             overflow-y: auto;
             border-right: 2px solid #e1e8ed;
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            flex-shrink: 0;
         }
         
         .sidebar-header {
@@ -185,15 +186,20 @@
             flex-direction: column;
             overflow: hidden;
             background: #f8f9fa;
+            min-width: 0;
         }
         
         .question-display {
             padding: 30px;
             background: white;
             border-bottom: 2px solid #e1e8ed;
-            max-height: 35%;
             overflow-y: auto;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+            /* FIX #1: Make question display resizable */
+            resize: vertical;
+            min-height: 200px;
+            max-height: 50%;
         }
         
         .question-display h2 {
@@ -249,6 +255,7 @@
             display: flex;
             flex-direction: column;
             background: #1e1e1e;
+            min-height: 0;
         }
         
         .editor-toolbar {
@@ -258,6 +265,7 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #1e1e1e;
+            flex-shrink: 0;
         }
         
         .editor-toolbar select {
@@ -329,18 +337,53 @@
             background: #444;
         }
         
+        /* FIX #1: Resizable editor */
+        .editor-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            position: relative;
+        }
+        
         #code-editor {
+            flex: 1;
             width: 100%;
-            border: none;
-            outline: none;
+            min-height: 300px;
+        }
+        
+        .resize-handle {
+            height: 4px;
+            background: #2d2d30;
+            cursor: ns-resize;
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        .resize-handle:hover {
+            background: #667eea;
+        }
+        
+        .resize-handle::after {
+            content: '⋮';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #888;
+            font-size: 20px;
+            letter-spacing: 2px;
         }
         
         .output-panel {
-            height: 220px;
             background: #1e1e1e;
             color: #d4d4d4;
             overflow-y: auto;
             border-top: 2px solid #2d2d30;
+            flex-shrink: 0;
+            resize: vertical;
+            min-height: 150px;
+            max-height: 500px;
         }
         
         .output-header {
@@ -534,7 +577,6 @@
             display: block;
         }
         
-        /* Custom Input Modal */
         .custom-input-overlay {
             display: none;
             position: fixed;
@@ -670,7 +712,6 @@
             background: #f8f9fa;
         }
         
-        /* Scrollbar Styling */
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -701,12 +742,10 @@
     </style>
 </head>
 <body>
-    <!-- Warning Banner -->
     <div id="warning-banner" class="warning-banner">
-        ⚠️ WARNING: Suspicious activity detected! Looking away from screen.
+        ⚠️ WARNING: Suspicious activity detected!
     </div>
     
-    <!-- Candidate Info Modal -->
     <div id="info-modal" class="modal active">
         <div class="modal-content">
             <h2>🎓 Welcome to Your Coding Test</h2>
@@ -719,49 +758,41 @@
         </div>
     </div>
     
-    <!-- Permissions Modal -->
     <div id="permissions-modal" class="modal">
         <div class="modal-content">
             <h2>🎥 Enable Camera & Microphone</h2>
-            <p>This test requires camera and microphone access for proctoring purposes. Your privacy is protected and recordings are only used for test verification.</p>
+            <p>This test requires camera and microphone access for proctoring purposes.</p>
             <button class="btn btn-submit" onclick="requestPermissions()" style="width: 100%; margin-top: 20px;">
                 Enable Access
             </button>
         </div>
     </div>
     
-    <!-- Custom Input Modal -->
     <div id="custom-input-overlay" class="custom-input-overlay">
         <div class="custom-input-container">
             <div class="custom-input-header">
-                <h3>
-                    <span>⚡</span>
-                    Custom Test Input
-                </h3>
+                <h3><span>⚡</span>Custom Test Input</h3>
                 <button class="close-custom-input" onclick="closeCustomInput()">×</button>
             </div>
             <div class="custom-input-body">
                 <div class="input-section">
                     <label>Enter Your Custom Input:</label>
-                    <textarea id="custom-input-field" placeholder="Type your input here...&#10;&#10;Example:&#10;5&#10;1 2 3 4 5"></textarea>
-                    <div class="input-hint">💡 Enter input exactly as you would in the console (line by line)</div>
+                    <textarea id="custom-input-field" placeholder="Type your input here..."></textarea>
+                    <div class="input-hint">💡 Enter input exactly as the function parameters require</div>
                 </div>
                 <div class="input-section">
                     <label>Expected Output (Optional):</label>
-                    <textarea id="custom-output-field" placeholder="Enter expected output to compare results..."></textarea>
-                    <div class="input-hint">💡 This helps you verify if your code produces the expected result</div>
+                    <textarea id="custom-output-field" placeholder="Enter expected output..."></textarea>
+                    <div class="input-hint">💡 Leave blank if you just want to see the output</div>
                 </div>
             </div>
             <div class="custom-input-footer">
                 <button class="btn btn-reset" onclick="closeCustomInput()">Cancel</button>
-                <button class="btn btn-run" onclick="executeCustomInput()">
-                    ▶ Run Code
-                </button>
+                <button class="btn btn-run" onclick="executeCustomInput()">▶ Run Code</button>
             </div>
         </div>
     </div>
     
-    <!-- Header -->
     <div class="header">
         <div>
             <h2 id="test-title">Loading Test...</h2>
@@ -783,9 +814,7 @@
         </div>
     </div>
     
-    <!-- Main Container -->
     <div class="main-container">
-        <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
                 <h3>Questions</h3>
@@ -802,21 +831,18 @@
             </div>
             <div class="question-list" id="question-list"></div>
             <div class="submit-test-section">
-                <button class="btn btn-submit" onclick="submitTest()" style="width: 100%;">
+                <button class="btn btn-submit" id="submit-test-btn" onclick="submitTest()" style="width: 100%;">
                     📤 Submit Test
                 </button>
             </div>
         </div>
         
-        <!-- Content Area -->
         <div class="content-area">
-            <!-- Question Display -->
             <div class="question-display" id="question-display">
                 <h2>Select a question to begin</h2>
                 <p>Choose any question from the sidebar to start coding</p>
             </div>
             
-            <!-- Code Editor -->
             <div class="editor-container">
                 <div class="editor-toolbar">
                     <select id="language-select" onchange="changeLanguage()">
@@ -841,7 +867,10 @@
                         </button>
                     </div>
                 </div>
-                <div id="code-editor" style="height: calc(100% - 305px);"></div>
+                <div class="editor-wrapper">
+                    <div id="code-editor"></div>
+                </div>
+                <div class="resize-handle"></div>
                 <div class="output-panel">
                     <div class="output-header">
                         <h4>Output Console</h4>
@@ -855,11 +884,10 @@
         </div>
     </div>
     
-    <!-- Video Preview -->
     <video id="video-preview" autoplay muted></video>
-    
-    <!-- Hidden canvas for AI analysis -->
     <canvas id="ai-canvas" style="display: none;"></canvas>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     
     <script>
         let socket;
@@ -874,11 +902,11 @@
         let tabSwitchCount = 0;
         let isTestActive = false;
         let editor = null;
+        let editorInitialized = false;
         
         const urlParams = new URLSearchParams(window.location.search);
         const testId = urlParams.get('id');
         
-        // Mock test data for fallback only
         const MOCK_TEST_DATA = {
             id: testId || '1',
             title: 'JavaScript & Algorithm Test',
@@ -895,38 +923,20 @@
                         { input: '[3,3], 6', output: '[0,1]' }
                     ],
                     template: 'function twoSum(nums, target) {\n    // Write your code here\n    \n}'
-                },
-                {
-                    id: 'q2',
-                    title: 'Reverse String',
-                    difficulty: 'easy',
-                    description: 'Write a function that reverses a string. The input string is given as an array of characters s.\n\nYou must do this by modifying the input array in-place with O(1) extra memory.',
-                    visibleTestCases: [
-                        { input: '["h","e","l","l","o"]', output: '["o","l","l","e","h"]' },
-                        { input: '["H","a","n","n","a","h"]', output: '["h","a","n","n","a","H"]' }
-                    ],
-                    template: 'function reverseString(s) {\n    // Write your code here\n    \n}'
-                },
-                {
-                    id: 'q3',
-                    title: 'Valid Palindrome',
-                    difficulty: 'medium',
-                    description: 'A phrase is a palindrome if, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward.\n\nGiven a string s, return true if it is a palindrome, or false otherwise.',
-                    visibleTestCases: [
-                        { input: '"A man, a plan, a canal: Panama"', output: 'true' },
-                        { input: '"race a car"', output: 'false' },
-                        { input: '" "', output: 'true' }
-                    ],
-                    template: 'function isPalindrome(s) {\n    // Write your code here\n    \n}'
                 }
             ]
         };
         
-        // Load Monaco Editor
-        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-        
         function initMonacoEditor() {
+            if (editorInitialized) {
+                console.log('Monaco editor already initialized');
+                return;
+            }
+            
+            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+            
             require(['vs/editor/editor.main'], function() {
+                console.log('Monaco loaded successfully');
                 editor = monaco.editor.create(document.getElementById('code-editor'), {
                     value: '// Write your code here\n',
                     language: 'javascript',
@@ -943,9 +953,11 @@
                     tabSize: 2
                 });
                 
-                // Listen for code changes
+                editorInitialized = true;
+                console.log('Monaco editor initialized');
+                
                 editor.onDidChangeModelContent(() => {
-                    if (socket && isTestActive && testData) {
+                    if (socket && isTestActive && testData && currentQuestionIndex < testData.questions.length) {
                         const question = testData.questions[currentQuestionIndex];
                         answers[question.id] = {
                             questionId: question.id,
@@ -964,26 +976,12 @@
             });
         }
         
-        // Initialize Monaco when DOM is ready
-        window.addEventListener('load', () => {
-            initMonacoEditor();
-            if (testId) {
-                loadTest();
-            } else {
-                alert('No test ID provided');
-                // For demo purposes, load mock data anyway
-                loadTest();
-            }
-        });
-        
-        // Load test data
         async function loadTest() {
             try {
                 if (!testId) {
                     throw new Error('No test ID provided');
                 }
                 
-                // Fetch from API
                 const response = await fetch(`/api/tests/${testId}`);
                 
                 if (!response.ok) {
@@ -992,49 +990,37 @@
                 
                 testData = await response.json();
                 
+                console.log('Test loaded:', testData);
                 document.getElementById('test-title').textContent = testData.title;
                 document.getElementById('total-count').textContent = testData.questions.length;
-                timeRemaining = testData.duration * 60;
                 
-                // Render question list
-                const questionList = document.getElementById('question-list');
-                questionList.innerHTML = '';
-                
-                testData.questions.forEach((q, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'question-item';
-                    div.innerHTML = `
-                        <div class="question-number">Question ${index + 1}</div>
-                        <div class="question-title">${q.title}</div>
-                        <span class="question-difficulty difficulty-${q.difficulty}">${q.difficulty.toUpperCase()}</span>
-                    `;
-                    div.onclick = () => loadQuestion(index);
-                    questionList.appendChild(div);
-                });
+                renderQuestionList();
                 
             } catch (error) {
                 console.error('Error loading test:', error);
-                alert('Error loading test: ' + error.message + '\n\nPlease check the test ID and try again.');
-                // Fallback to mock data for demo
+                alert('Error loading test: ' + error.message + '\n\nLoading demo mode...');
                 testData = MOCK_TEST_DATA;
                 document.getElementById('test-title').textContent = testData.title + ' (Demo Mode)';
                 document.getElementById('total-count').textContent = testData.questions.length;
-                timeRemaining = testData.duration * 60;
-                
-                const questionList = document.getElementById('question-list');
-                questionList.innerHTML = '';
-                testData.questions.forEach((q, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'question-item';
-                    div.innerHTML = `
-                        <div class="question-number">Question ${index + 1}</div>
-                        <div class="question-title">${q.title}</div>
-                        <span class="question-difficulty difficulty-${q.difficulty}">${q.difficulty.toUpperCase()}</span>
-                    `;
-                    div.onclick = () => loadQuestion(index);
-                    questionList.appendChild(div);
-                });
+                renderQuestionList();
             }
+        }
+        
+        function renderQuestionList() {
+            const questionList = document.getElementById('question-list');
+            questionList.innerHTML = '';
+            
+            testData.questions.forEach((q, index) => {
+                const div = document.createElement('div');
+                div.className = 'question-item';
+                div.innerHTML = `
+                    <div class="question-number">Question ${index + 1}</div>
+                    <div class="question-title">${q.title}</div>
+                    <span class="question-difficulty difficulty-${q.difficulty || 'easy'}">${(q.difficulty || 'easy').toUpperCase()}</span>
+                `;
+                div.onclick = () => loadQuestion(index);
+                questionList.appendChild(div);
+            });
         }
         
         async function startTest() {
@@ -1046,7 +1032,6 @@
                 return;
             }
             
-            // Validate email
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 alert('Please enter a valid email address');
@@ -1054,7 +1039,6 @@
             }
             
             try {
-                // Start session with API
                 const response = await fetch('/api/test-session/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1071,13 +1055,17 @@
                 
                 const data = await response.json();
                 sessionId = data.sessionId;
+                console.log('Session started:', sessionId);
                 
                 document.getElementById('info-modal').classList.remove('active');
                 document.getElementById('permissions-modal').classList.add('active');
                 
             } catch (error) {
                 console.error('Error starting test:', error);
-                alert('Error starting test: ' + error.message + '\n\nPlease try again.');
+                alert('Error starting test: ' + error.message + '\n\nContinuing in demo mode...');
+                sessionId = 'demo-' + Date.now();
+                document.getElementById('info-modal').classList.remove('active');
+                document.getElementById('permissions-modal').classList.add('active');
             }
         }
         
@@ -1092,60 +1080,137 @@
                 document.getElementById('camera-status').style.background = '#2ed573';
                 document.getElementById('mic-status').style.background = '#2ed573';
                 
-                document.getElementById('permissions-modal').classList.remove('active');
-                
-                // Initialize Socket.IO (if available)
-                try {
-                    socket = io();
-                    socket.emit('join-monitoring', { sessionId });
-                } catch (e) {
-                    console.log('Socket.IO not available, continuing without real-time monitoring');
-                }
-                
-                // Start test
-                isTestActive = true;
-                startTimer();
-                loadQuestion(0);
-                startProctoring();
-                setupTabDetection();
-                
             } catch (error) {
                 console.error('Camera access error:', error);
-                // For demo, continue without camera
-                if (confirm('Camera access denied. Continue without proctoring? (Not recommended for real tests)')) {
-                    document.getElementById('permissions-modal').classList.remove('active');
-                    isTestActive = true;
-                    startTimer();
-                    loadQuestion(0);
-                    setupTabDetection();
+                if (!confirm('Camera access denied. Continue without proctoring?')) {
+                    return;
                 }
             }
+            
+            document.getElementById('permissions-modal').classList.remove('active');
+            
+            try {
+                socket = io();
+                socket.emit('join-monitoring', { sessionId });
+            } catch (e) {
+                console.log('Socket.IO not available');
+            }
+            
+            if (testData && testData.duration) {
+                timeRemaining = testData.duration * 60;
+                console.log('Test duration set to:', timeRemaining, 'seconds');
+            } else {
+                timeRemaining = 3600;
+                console.warn('No test duration found, using default 60 minutes');
+            }
+            
+            isTestActive = true;
+            startTimer();
+            loadQuestion(0);
+            
+            if (videoStream) {
+                startProctoring();
+            }
+            
+            setupTabDetection();
         }
         
         function startTimer() {
             const timerElement = document.getElementById('timer');
             
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            updateTimerDisplay();
+            
             timerInterval = setInterval(() => {
+                if (!isTestActive) {
+                    clearInterval(timerInterval);
+                    return;
+                }
+                
                 timeRemaining--;
+                updateTimerDisplay();
                 
-                const minutes = Math.floor(timeRemaining / 60);
-                const seconds = timeRemaining % 60;
-                timerElement.textContent = 
-                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                
+                // FIX #3: Force auto-submit when time runs out
                 if (timeRemaining <= 0) {
                     clearInterval(timerInterval);
-                    alert('Time is up! Submitting your test...');
-                    submitTest();
-                }
-                
-                // Update timer color
-                if (timeRemaining < 300) {
-                    timerElement.style.color = '#ff4757';
-                } else if (timeRemaining < 600) {
-                    timerElement.style.color = '#ffa502';
+                    forceSubmitTest();
                 }
             }, 1000);
+        }
+        
+        function updateTimerDisplay() {
+            const timerElement = document.getElementById('timer');
+            
+            if (timeRemaining < 0) {
+                timeRemaining = 0;
+            }
+            
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            timerElement.textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            if (timeRemaining < 300) {
+                timerElement.style.color = '#ff4757';
+            } else if (timeRemaining < 600) {
+                timerElement.style.color = '#ffa502';
+            } else {
+                timerElement.style.color = 'white';
+            }
+        }
+        
+        // FIX #3: Force submit without confirmation
+        async function forceSubmitTest() {
+            console.log('Time expired - forcing submission');
+            
+            const submitBtn = document.getElementById('submit-test-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Auto-Submitting...';
+            
+            isTestActive = false;
+            clearInterval(timerInterval);
+            clearInterval(aiInterval);
+            
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+            
+            try {
+                const response = await fetch('/api/test-session/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId,
+                        answers,
+                        autoSubmitted: true
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to submit test');
+                }
+                
+                const result = await response.json();
+                
+                // Immediately redirect to success page
+                window.location.href = `/success.html?submission=${result.submissionId}&auto=true`;
+                
+            } catch (error) {
+                console.error('Error submitting test:', error);
+                document.body.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div style="background: white; padding: 50px; border-radius: 20px; text-align: center;">
+                            <div style="font-size: 60px; margin-bottom: 20px;">⚠️</div>
+                            <h1 style="color: #ff4757;">Submission Error</h1>
+                            <p style="color: #666; margin: 20px 0;">Failed to submit your test. Please contact the administrator.</p>
+                            <p style="color: #999; font-size: 0.9em;">Error: ${error.message}</p>
+                        </div>
+                    </div>
+                `;
+            }
         }
         
         function loadQuestion(index) {
@@ -1157,13 +1222,13 @@
             currentQuestionIndex = index;
             const question = testData.questions[index];
             
-            // Update sidebar
+            console.log('Loading question:', index, question.title);
+            
             document.querySelectorAll('.question-item').forEach((item, i) => {
                 item.classList.remove('active');
                 if (i === index) item.classList.add('active');
             });
             
-            // Display question
             const display = document.getElementById('question-display');
             let testCasesHTML = '<div class="test-cases-display"><h3>📋 Test Cases:</h3>';
             question.visibleTestCases.forEach((tc, i) => {
@@ -1179,18 +1244,16 @@
             
             display.innerHTML = `
                 <h2>Question ${index + 1}: ${question.title}</h2>
-                <span class="question-difficulty difficulty-${question.difficulty}">${question.difficulty.toUpperCase()}</span>
+                <span class="question-difficulty difficulty-${question.difficulty || 'easy'}">${(question.difficulty || 'easy').toUpperCase()}</span>
                 <p>${question.description}</p>
                 ${testCasesHTML}
             `;
             
-            // Load code into Monaco editor
             if (editor) {
                 const code = answers[question.id]?.code || question.template || '// Write your code here\n';
                 editor.setValue(code);
             }
             
-            // Clear output
             document.getElementById('output-panel').innerHTML = '<pre>Output will appear here after running tests...</pre>';
         }
         
@@ -1219,7 +1282,6 @@
             outputPanel.innerHTML = '<pre>🔄 Running tests...</pre>';
             
             try {
-                // Execute code via API
                 const response = await fetch('/api/execute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1240,7 +1302,7 @@
                     throw new Error(result.error || 'Execution failed');
                 }
                 
-                let output = '<div>';
+                let output = '';
                 const summary = result.summary || {
                     passed: result.results.filter(r => r.passed).length,
                     total: result.results.length
@@ -1276,7 +1338,6 @@
                     `;
                 });
                 
-                output += '</div>';
                 outputPanel.innerHTML = output;
                 
             } catch (error) {
@@ -1317,7 +1378,6 @@
             closeCustomInput();
             
             try {
-                // Execute with custom input via API
                 const response = await fetch('/api/execute/custom', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1390,22 +1450,25 @@
                 submittedAt: new Date().toISOString()
             };
             
-            // Mark as answered
             document.querySelectorAll('.question-item')[currentQuestionIndex].classList.add('answered');
             
-            // Update answered count
             const answeredCount = Object.keys(answers).length;
             document.getElementById('answered-count').textContent = answeredCount;
             
             alert('✓ Question submitted successfully!');
             
-            // Move to next question if available
             if (currentQuestionIndex < testData.questions.length - 1) {
                 loadQuestion(currentQuestionIndex + 1);
             }
         }
         
         async function submitTest() {
+            const submitBtn = document.getElementById('submit-test-btn');
+            if (submitBtn.disabled) {
+                console.log('Submit already in progress');
+                return;
+            }
+            
             const answeredCount = Object.keys(answers).length;
             const totalQuestions = testData.questions.length;
             
@@ -1423,6 +1486,9 @@
                 }
             }
             
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Submitting...';
+            
             isTestActive = false;
             clearInterval(timerInterval);
             clearInterval(aiInterval);
@@ -1432,7 +1498,6 @@
             }
             
             try {
-                // Submit to API
                 const response = await fetch('/api/test-session/submit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1447,26 +1512,15 @@
                 }
                 
                 const result = await response.json();
-                
-                alert('✓ Test submitted successfully!\n\nThank you for completing the test.');
-                
-                // Show success message or redirect
-                document.body.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div style="background: white; padding: 50px; border-radius: 20px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-                            <div style="font-size: 80px; margin-bottom: 20px;">✅</div>
-                            <h1 style="color: #2c3e50; margin-bottom: 15px;">Test Submitted Successfully!</h1>
-                            <p style="color: #666; margin-bottom: 20px;">Submission ID: ${result.submissionId}</p>
-                            <p style="color: #888;">Your answers have been recorded. You may now close this window.</p>
-                        </div>
-                    </div>
-                `;
+                window.location.href = `/success.html?submission=${result.submissionId}`;
                 
             } catch (error) {
                 console.error('Error submitting test:', error);
-                alert('Error submitting test: ' + error.message + '\n\nPlease try again or contact support.');
+                alert('Error submitting test: ' + error.message + '\n\nPlease try again.');
                 
-                // Restore test state
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 Submit Test';
+                
                 isTestActive = true;
                 if (!timerInterval) {
                     startTimer();
@@ -1474,7 +1528,6 @@
             }
         }
         
-        // Proctoring functions
         function startProctoring() {
             const canvas = document.getElementById('ai-canvas');
             const ctx = canvas.getContext('2d');
@@ -1503,7 +1556,6 @@
         }
         
         async function analyzeFrame(frameData) {
-            // Mock AI detection for demo
             const random = Math.random();
             
             if (random < 0.05) {
@@ -1517,6 +1569,7 @@
                         alert: {
                             type: 'looking_away',
                             severity: 'medium',
+                            message: 'Looking away detected',
                             timestamp: new Date().toISOString()
                         }
                     });
@@ -1540,6 +1593,7 @@
                             alert: {
                                 type: 'tab_switch',
                                 severity: 'high',
+                                message: 'Tab switch detected',
                                 count: tabSwitchCount,
                                 timestamp: new Date().toISOString()
                             }
@@ -1567,7 +1621,6 @@
             });
         }
         
-        // Prevent copying
         document.addEventListener('copy', (e) => {
             if (isTestActive) {
                 e.preventDefault();
@@ -1576,7 +1629,6 @@
             }
         });
         
-        // Prevent cut
         document.addEventListener('cut', (e) => {
             if (isTestActive) {
                 e.preventDefault();
@@ -1584,7 +1636,6 @@
             }
         });
         
-        // Prevent right-click
         document.addEventListener('contextmenu', (e) => {
             if (isTestActive) {
                 e.preventDefault();
@@ -1592,10 +1643,8 @@
             }
         });
         
-        // Prevent keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (isTestActive) {
-                // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
                 if (e.keyCode === 123 || 
                     (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
                     (e.ctrlKey && e.keyCode === 85)) {
@@ -1604,9 +1653,21 @@
                 }
             }
         });
+        
+        window.addEventListener('load', () => {
+            console.log('Page loaded, initializing Monaco editor...');
+            initMonacoEditor();
+            
+            if (testId) {
+                loadTest();
+            } else {
+                console.log('No test ID, loading mock data');
+                testData = MOCK_TEST_DATA;
+                document.getElementById('test-title').textContent = testData.title + ' (Demo Mode)';
+                document.getElementById('total-count').textContent = testData.questions.length;
+                renderQuestionList();
+            }
+        });
     </script>
-    
-    <!-- Monaco Editor Loader -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 </body>
 </html>

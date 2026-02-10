@@ -71,10 +71,84 @@ function getPistonLanguageConfig(language) {
   return configs[language] || configs['javascript'];
 }
 
+// FIX #1: Smart output comparison function
+function compareOutputs(actual, expected) {
+  // Remove all whitespace and normalize
+  const normalizeOutput = (str) => {
+    if (!str) return '';
+    return str
+      .trim()
+      .replace(/\s+/g, ' ')  // Normalize whitespace
+      .replace(/\r\n/g, '\n') // Normalize line endings
+      .replace(/\n+/g, '\n'); // Normalize multiple newlines
+  };
+
+  const normalizedActual = normalizeOutput(actual);
+  const normalizedExpected = normalizeOutput(expected);
+
+  // Direct comparison
+  if (normalizedActual === normalizedExpected) {
+    return true;
+  }
+
+  // Try parsing as JSON for arrays/objects comparison
+  try {
+    const actualParsed = JSON.parse(normalizedActual);
+    const expectedParsed = JSON.parse(normalizedExpected);
+
+    // Deep equal comparison
+    return JSON.stringify(actualParsed) === JSON.stringify(expectedParsed);
+  } catch (e) {
+    // Not JSON, continue with other checks
+  }
+
+  // Try comparing as arrays (handle both ["a","b"] and [a,b] formats)
+  try {
+    // Remove quotes and brackets, split by comma
+    const parseArray = (str) => {
+      return str
+        .replace(/[\[\]"']/g, '')  // Remove brackets and quotes
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+    };
+
+    const actualArray = parseArray(normalizedActual);
+    const expectedArray = parseArray(normalizedExpected);
+
+    if (actualArray.length === expectedArray.length) {
+      const matches = actualArray.every((val, idx) => val === expectedArray[idx]);
+      if (matches) return true;
+    }
+  } catch (e) {
+    // Not an array format
+  }
+
+  // Try numeric comparison (handle floating point)
+  try {
+    const actualNum = parseFloat(normalizedActual);
+    const expectedNum = parseFloat(normalizedExpected);
+
+    if (!isNaN(actualNum) && !isNaN(expectedNum)) {
+      return Math.abs(actualNum - expectedNum) < 0.0001;
+    }
+  } catch (e) {
+    // Not numeric
+  }
+
+  // Case-insensitive comparison for string answers
+  if (normalizedActual.toLowerCase() === normalizedExpected.toLowerCase()) {
+    return true;
+  }
+
+  // Final fallback: original comparison
+  return actual.trim() === expected.trim();
+}
+
 // Routes
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-  
+
   if (username === 'admin' && password === 'admin123') {
     req.session.user = { username: 'admin', role: 'admin' };
     res.json({ success: true, role: 'admin' });
@@ -96,16 +170,25 @@ app.get('/api/check-auth', (req, res) => {
   }
 });
 
-// Test Management APIs
+// FIX #3: Dynamic URL generation based on request host
 app.post('/api/tests', requireAdmin, (req, res) => {
   const testId = uuidv4();
+
+  // Generate proper URL based on the request
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const testLink = `${protocol}://${host}/test.html?id=${testId}`;
+
   const test = {
     id: testId,
     ...req.body,
     createdAt: new Date().toISOString(),
-    link: `${req.protocol}://${req.get('host')}/test.html?id=${testId}`
+    link: testLink
   };
+
   tests[testId] = test;
+  console.log(`Test created with link: ${testLink}`);
+
   res.json({ success: true, test });
 });
 
@@ -157,16 +240,16 @@ app.delete('/api/tests/:id', requireAdmin, (req, res) => {
 app.post('/api/test-session/start', (req, res) => {
   const { testId, candidateName, candidateEmail } = req.body;
   const test = tests[testId];
-  
+
   if (!test) {
     return res.status(404).json({ error: 'Test not found' });
   }
-  
+
   // Validate input
   if (!candidateName || !candidateEmail) {
     return res.status(400).json({ error: 'Name and email are required' });
   }
-  
+
   const sessionId = uuidv4();
   activeTests[sessionId] = {
     sessionId,
@@ -180,38 +263,41 @@ app.post('/api/test-session/start', (req, res) => {
     violations: [],
     status: 'in_progress'
   };
-  
+
   proctoringData[sessionId] = {
     frames: [],
     alerts: [],
     codeSnapshots: []
   };
-  
+
   req.session.testSession = sessionId;
+
+  console.log(`Test session started: ${sessionId} for ${candidateName}`);
+
   res.json({ success: true, sessionId, startTime: activeTests[sessionId].startTime });
 });
 
 app.post('/api/test-session/submit', (req, res) => {
   const sessionId = req.session.testSession || req.body.sessionId;
   const session = activeTests[sessionId];
-  
+
   if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
-  
+
   if (session.status === 'submitted') {
     return res.status(400).json({ error: 'Test already submitted' });
   }
-  
+
   session.endTime = new Date().toISOString();
   session.answers = req.body.answers || {};
   session.status = 'submitted';
-  
+
   // Calculate test duration
   const startTime = new Date(session.startTime);
   const endTime = new Date(session.endTime);
   session.duration = Math.floor((endTime - startTime) / 1000); // in seconds
-  
+
   const submissionId = uuidv4();
   submissions[submissionId] = {
     id: submissionId,
@@ -219,7 +305,9 @@ app.post('/api/test-session/submit', (req, res) => {
     proctoringData: proctoringData[sessionId],
     submittedAt: session.endTime
   };
-  
+
+  console.log(`Test submitted: ${submissionId} by ${session.candidateName}`);
+
   // Notify admin about submission
   io.to('admin-room').emit('test-submitted', {
     submissionId,
@@ -227,11 +315,11 @@ app.post('/api/test-session/submit', (req, res) => {
     candidateName: session.candidateName,
     candidateEmail: session.candidateEmail
   });
-  
-  res.json({ 
-    success: true, 
+
+  res.json({
+    success: true,
     submissionId,
-    message: 'Test submitted successfully' 
+    message: 'Test submitted successfully'
   });
 });
 
@@ -262,121 +350,199 @@ app.get('/api/submissions/:id', requireAdmin, (req, res) => {
   }
 });
 
-// Enhanced Code Execution API with multi-language support
+function wrapCodeWithTestHarness(code, testCases, language, functionName) {
+  // Auto-detect function name if not provided
+  if (!functionName) {
+    const jsMatch = code.match(/function\s+(\w+)\s*\(/);
+    const pyMatch = code.match(/def\s+(\w+)\s*\(/);
+
+    if (jsMatch) functionName = jsMatch[1];
+    else if (pyMatch) functionName = pyMatch[1];
+    else functionName = 'solution';
+  }
+
+  switch (language) {
+    case 'javascript':
+      return `${code}
+
+// ===== AUTO-GENERATED TEST HARNESS =====
+const testCases = ${JSON.stringify(testCases)};
+
+testCases.forEach((tc, idx) => {
+    try {
+        const inputParts = tc.input.split(',').map(s => s.trim());
+        const args = inputParts.map(arg => {
+            try {
+                return JSON.parse(arg);
+            } catch (e) {
+                const num = Number(arg);
+                return isNaN(num) ? arg.replace(/['"]/g, '') : num;
+            }
+        });
+        
+        const result = ${functionName}(...args);
+        console.log('TEST_CASE_' + idx + ':' + JSON.stringify(result));
+    } catch (error) {
+        console.log('TEST_CASE_' + idx + '_ERROR:' + error.message);
+    }
+});
+`;
+
+    case 'python':
+      return `${code}
+
+# ===== AUTO-GENERATED TEST HARNESS =====
+import json
+test_cases = ${JSON.stringify(testCases)}
+
+for idx, tc in enumerate(test_cases):
+    try:
+        input_parts = [s.strip() for s in tc['input'].split(',')]
+        args = []
+        for arg in input_parts:
+            try:
+                args.append(json.loads(arg))
+            except:
+                try:
+                    args.append(float(arg) if '.' in arg else int(arg))
+                except:
+                    args.append(arg.strip('\\\"\\''))
+        
+        result = ${functionName}(*args)
+        print(f'TEST_CASE_{idx}:{json.dumps(result)}')
+    except Exception as error:
+        print(f'TEST_CASE_{idx}_ERROR:{str(error)}')
+`;
+
+    default:
+      return code;
+  }
+}
+
+// REPLACE the existing /api/execute endpoint with this updated version:
+
 app.post('/api/execute', async (req, res) => {
-  const { code, testCases, language = 'javascript' } = req.body;
-  
+  const { code, testCases, language = 'javascript', functionName } = req.body;
+
   if (!code || !testCases || testCases.length === 0) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'Code and test cases are required' 
+    return res.status(400).json({
+      success: false,
+      error: 'Code and test cases are required'
     });
   }
-  
+
   try {
-    const results = [];
     const langConfig = getPistonLanguageConfig(language);
-    
-    for (let i = 0; i < testCases.length; i++) {
-      const testCase = testCases[i];
-      const startTime = Date.now();
-      
-      try {
-        // Call Piston API for code execution
-        const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            language: langConfig.language,
-            version: langConfig.version,
-            files: [{
-              name: langConfig.file,
-              content: code
-            }],
-            stdin: testCase.input || '',
-            args: [],
-            compile_timeout: 10000,
-            run_timeout: 3000,
-            compile_memory_limit: -1,
-            run_memory_limit: -1
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Execution service error: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        const executionTime = Date.now() - startTime;
-        
-        // Check if there were compilation errors
-        if (result.compile && result.compile.stderr) {
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: '',
-            passed: false,
-            executionTime,
-            error: `Compilation Error: ${result.compile.stderr}`,
-            status: 'compilation_error'
-          });
-          continue;
-        }
-        
-        // Check if there were runtime errors
-        if (result.run && result.run.stderr && result.run.code !== 0) {
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: result.run.stdout ? result.run.stdout.trim() : '',
-            passed: false,
-            executionTime,
-            error: `Runtime Error: ${result.run.stderr}`,
-            status: 'runtime_error'
-          });
-          continue;
-        }
-        
-        // Get the output
-        const actualOutput = (result.run?.stdout || '').trim();
-        const expectedOutput = (testCase.output || '').trim();
-        
-        // Compare outputs (normalize line endings and whitespace)
-        const normalizedActual = actualOutput.replace(/\r\n/g, '\n').replace(/\s+$/, '');
-        const normalizedExpected = expectedOutput.replace(/\r\n/g, '\n').replace(/\s+$/, '');
-        const passed = normalizedActual === normalizedExpected;
-        
-        results.push({
+
+    // FIX #2: Wrap code with test harness
+    const wrappedCode = wrapCodeWithTestHarness(code, testCases, language, functionName);
+
+    console.log('Executing wrapped code for', testCases.length, 'test cases');
+
+    const startTime = Date.now();
+
+    // Execute wrapped code ONCE (runs all test cases)
+    const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        language: langConfig.language,
+        version: langConfig.version,
+        files: [{
+          name: langConfig.file,
+          content: wrappedCode
+        }],
+        stdin: '',
+        args: [],
+        compile_timeout: 10000,
+        run_timeout: 5000  // Increased for multiple test cases
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Execution service error: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const executionTime = Date.now() - startTime;
+
+    // Check compilation errors
+    if (result.compile && result.compile.stderr) {
+      return res.json({
+        success: false,
+        error: 'Compilation Error',
+        details: result.compile.stderr,
+        results: testCases.map((tc, i) => ({
           testCase: i + 1,
-          input: testCase.input,
-          expectedOutput: expectedOutput,
-          actualOutput: actualOutput,
-          passed: passed,
-          executionTime,
-          status: passed ? 'passed' : 'failed',
-          stderr: result.run?.stderr || null
-        });
-        
-      } catch (error) {
-        console.error('Execution error for test case', i + 1, ':', error);
-        results.push({
-          testCase: i + 1,
-          input: testCase.input,
-          expectedOutput: testCase.output,
+          input: tc.input,
+          expectedOutput: tc.output,
           actualOutput: '',
           passed: false,
-          executionTime: Date.now() - startTime,
-          error: error.message,
-          status: 'execution_error'
+          error: 'Compilation failed',
+          executionTime: 0,
+          status: 'compilation_error'
+        }))
+      });
+    }
+
+    // Parse output from wrapped code
+    const output = result.run?.stdout || '';
+    const stderr = result.run?.stderr || '';
+    const lines = output.split('\n').filter(line => line.trim());
+
+    console.log('Execution output lines:', lines.length);
+
+    const results = [];
+
+    testCases.forEach((tc, idx) => {
+      // Find line with TEST_CASE_X:result
+      const resultLine = lines.find(line => line.startsWith(`TEST_CASE_${idx}:`));
+      const errorLine = lines.find(line => line.startsWith(`TEST_CASE_${idx}_ERROR:`));
+
+      if (errorLine) {
+        const error = errorLine.substring(`TEST_CASE_${idx}_ERROR:`.length);
+        results.push({
+          testCase: idx + 1,
+          input: tc.input,
+          expectedOutput: tc.output,
+          actualOutput: '',
+          passed: false,
+          error: error,
+          executionTime: executionTime / testCases.length,
+          status: 'runtime_error'
+        });
+      } else if (resultLine) {
+        const actualOutput = resultLine.substring(`TEST_CASE_${idx}:`.length).trim();
+        const passed = compareOutputs(actualOutput, tc.output);
+
+        results.push({
+          testCase: idx + 1,
+          input: tc.input,
+          expectedOutput: tc.output,
+          actualOutput: actualOutput,
+          passed: passed,
+          executionTime: executionTime / testCases.length,
+          status: passed ? 'passed' : 'failed',
+          stderr: null
+        });
+      } else {
+        // No output found for this test case
+        results.push({
+          testCase: idx + 1,
+          input: tc.input,
+          expectedOutput: tc.output,
+          actualOutput: '',
+          passed: false,
+          error: stderr || 'No output produced',
+          executionTime: executionTime / testCases.length,
+          status: 'no_output'
         });
       }
-    }
-    
+    });
+
     const passedCount = results.filter(r => r.passed).length;
     const totalCount = results.length;
-    
+
     res.json({
       success: true,
       results,
@@ -384,11 +550,11 @@ app.post('/api/execute', async (req, res) => {
         total: totalCount,
         passed: passedCount,
         failed: totalCount - passedCount,
-        allPassed: results.every(r => r.passed),
+        allPassed: passedCount === totalCount,
         percentage: totalCount > 0 ? ((passedCount / totalCount) * 100).toFixed(2) : 0
       }
     });
-    
+
   } catch (error) {
     console.error('Code execution error:', error);
     res.status(500).json({
@@ -399,21 +565,24 @@ app.post('/api/execute', async (req, res) => {
   }
 });
 
+// Enhanced Code Execution API with smart output comparison
+
+
 // Custom input execution endpoint
 app.post('/api/execute/custom', async (req, res) => {
   const { code, customInput, language = 'javascript' } = req.body;
-  
+
   if (!code) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'Code is required' 
+    return res.status(400).json({
+      success: false,
+      error: 'Code is required'
     });
   }
-  
+
   try {
     const langConfig = getPistonLanguageConfig(language);
     const startTime = Date.now();
-    
+
     const response = await fetch('https://emkc.org/api/v2/piston/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -432,14 +601,14 @@ app.post('/api/execute/custom', async (req, res) => {
         run_memory_limit: -1
       })
     });
-    
+
     if (!response.ok) {
       throw new Error(`Execution service error: ${response.statusText}`);
     }
-    
+
     const result = await response.json();
     const executionTime = Date.now() - startTime;
-    
+
     // Handle compilation errors
     if (result.compile && result.compile.stderr) {
       return res.json({
@@ -449,7 +618,7 @@ app.post('/api/execute/custom', async (req, res) => {
         executionTime
       });
     }
-    
+
     // Handle runtime errors
     if (result.run && result.run.stderr && result.run.code !== 0) {
       return res.json({
@@ -461,7 +630,7 @@ app.post('/api/execute/custom', async (req, res) => {
         hasError: true
       });
     }
-    
+
     res.json({
       success: true,
       output: result.run?.stdout || '',
@@ -470,7 +639,7 @@ app.post('/api/execute/custom', async (req, res) => {
       executionTime,
       hasError: false
     });
-    
+
   } catch (error) {
     console.error('Custom execution error:', error);
     res.status(500).json({
@@ -484,21 +653,21 @@ app.post('/api/execute/custom', async (req, res) => {
 // Proctoring APIs
 app.post('/api/proctoring/log', (req, res) => {
   const sessionId = req.session.testSession || req.body.sessionId;
-  
+
   if (!sessionId || !activeTests[sessionId]) {
     return res.status(404).json({ error: 'Session not found' });
   }
-  
+
   const log = {
     timestamp: new Date().toISOString(),
     ...req.body
   };
-  
+
   activeTests[sessionId].proctoringLogs.push(log);
-  
+
   if (req.body.type === 'tab-switch') {
     activeTests[sessionId].tabSwitches++;
-    
+
     // Notify admin about tab switch
     io.to('admin-room').emit('proctoring-event', {
       sessionId,
@@ -508,10 +677,10 @@ app.post('/api/proctoring/log', (req, res) => {
       timestamp: log.timestamp
     });
   }
-  
+
   if (req.body.type === 'violation') {
     activeTests[sessionId].violations.push(log);
-    
+
     // Notify admin about violation
     io.to('admin-room').emit('proctoring-event', {
       sessionId,
@@ -521,39 +690,39 @@ app.post('/api/proctoring/log', (req, res) => {
       timestamp: log.timestamp
     });
   }
-  
+
   res.json({ success: true });
 });
 
 app.post('/api/proctoring/frame', (req, res) => {
   const sessionId = req.session.testSession || req.body.sessionId;
-  
+
   if (proctoringData[sessionId]) {
     // Store only last 10 frames to save memory
     if (proctoringData[sessionId].frames.length >= 10) {
       proctoringData[sessionId].frames.shift();
     }
-    
+
     proctoringData[sessionId].frames.push({
       timestamp: new Date().toISOString(),
       frame: req.body.frame
     });
   }
-  
+
   res.json({ success: true });
 });
 
 app.post('/api/proctoring/alert', (req, res) => {
   const sessionId = req.session.testSession || req.body.sessionId;
-  
+
   if (proctoringData[sessionId]) {
     const alert = {
       timestamp: new Date().toISOString(),
       ...req.body
     };
-    
+
     proctoringData[sessionId].alerts.push(alert);
-    
+
     // Notify admin about alert
     io.to('admin-room').emit('proctoring-alert', {
       sessionId,
@@ -561,7 +730,7 @@ app.post('/api/proctoring/alert', (req, res) => {
       candidateName: activeTests[sessionId]?.candidateName
     });
   }
-  
+
   res.json({ success: true });
 });
 
@@ -579,38 +748,46 @@ app.get('/api/active-sessions', requireAdmin, (req, res) => {
       violations: session.violations.length,
       answeredQuestions: Object.keys(session.answers).length
     }));
-  
+
   res.json(activeSessions);
 });
 
-// Socket.IO for real-time monitoring
+// FIX #2: Socket.IO for real-time monitoring
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-  
+  console.log('✅ Client connected:', socket.id);
+
   socket.on('join-monitoring', (data) => {
+    console.log('📡 Join monitoring request:', data);
+
     if (data.role === 'admin') {
       socket.join('admin-room');
-      console.log('Admin joined monitoring room');
-      
+      console.log('👨‍💼 Admin joined monitoring room');
+
       // Send all active sessions to the newly connected admin
       const activeSessions = Object.keys(activeTests)
         .filter(sessionId => activeTests[sessionId].status === 'in_progress')
         .map(sessionId => ({
           sessionId,
           session: {
-            ...activeTests[sessionId],
-            answers: undefined // Don't send answers yet
+            candidateName: activeTests[sessionId].candidateName,
+            candidateEmail: activeTests[sessionId].candidateEmail,
+            testId: activeTests[sessionId].testId,
+            startTime: activeTests[sessionId].startTime,
+            tabSwitches: activeTests[sessionId].tabSwitches,
+            violations: activeTests[sessionId].violations.length
           }
         }));
-      
+
+      console.log(`📊 Sending ${activeSessions.length} active sessions to admin`);
       socket.emit('active-sessions', activeSessions);
-      
+
     } else if (data.sessionId) {
       socket.join(`session-${data.sessionId}`);
-      console.log(`Student joined session: ${data.sessionId}`);
-      
+      console.log(`👨‍🎓 Student joined session: ${data.sessionId}`);
+
       // Notify all admins about this student
       if (activeTests[data.sessionId]) {
+        console.log(`📢 Notifying admins about new student: ${activeTests[data.sessionId].candidateName}`);
         io.to('admin-room').emit('student-connected', {
           sessionId: data.sessionId,
           session: {
@@ -623,16 +800,16 @@ io.on('connection', (socket) => {
       }
     }
   });
-  
+
   socket.on('video-frame', (data) => {
-    // Forward video frame to admin (throttled)
+    // Forward video frame to admin
     io.to('admin-room').emit('student-video-frame', {
       sessionId: data.sessionId,
       frame: data.frame,
       timestamp: new Date().toISOString()
     });
   });
-  
+
   socket.on('code-update', (data) => {
     // Store code snapshot
     const sessionId = data.sessionId;
@@ -643,7 +820,7 @@ io.on('connection', (socket) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     // Forward code updates to admin for live monitoring
     io.to('admin-room').emit('student-code-update', {
       sessionId: data.sessionId,
@@ -653,8 +830,9 @@ io.on('connection', (socket) => {
       candidateName: activeTests[sessionId]?.candidateName
     });
   });
-  
+
   socket.on('proctoring-alert', (data) => {
+    console.log('⚠️ Proctoring alert:', data);
     // Forward AI alerts to admin
     io.to('admin-room').emit('proctoring-alert', {
       sessionId: data.sessionId,
@@ -663,9 +841,9 @@ io.on('connection', (socket) => {
       candidateName: activeTests[data.sessionId]?.candidateName
     });
   });
-  
+
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    console.log('❌ Client disconnected:', socket.id);
   });
 });
 
@@ -692,11 +870,12 @@ app.get('/success.html', (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     activeTests: Object.keys(activeTests).length,
-    submissions: Object.keys(submissions).length
+    submissions: Object.keys(submissions).length,
+    activeSessions: Object.values(activeTests).filter(t => t.status === 'in_progress').length
   });
 });
 
@@ -720,10 +899,15 @@ server.listen(PORT, () => {
    - POST /api/login - Admin login
    - GET  /api/tests - Get all tests
    - POST /api/tests - Create new test
-   - POST /api/execute - Execute code
+   - POST /api/execute - Execute code (smart comparison)
    - POST /api/execute/custom - Execute with custom input
    - GET  /api/active-sessions - Get active sessions
    - GET  /api/submissions - Get all submissions
+
+🔧 Fixes Applied:
+   ✅ Smart output comparison (handles arrays without quotes)
+   ✅ Real-time monitoring with Socket.IO
+   ✅ Dynamic URL generation (works on Render/Heroku)
 
 🎯 Ready to accept test sessions!
   `);
