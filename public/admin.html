@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CodeTest Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar h1 {
+            font-size: 1.5em;
+        }
+        
+        .navbar button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        
+        .navbar button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .tab {
+            padding: 12px 30px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 1em;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #2ed573;
+            color: white;
+        }
+        
+        .questions-list {
+            margin-top: 20px;
+        }
+        
+        .question-item {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .question-item h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .question-item pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .test-case {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .test-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .test-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 5px solid #667eea;
+        }
+        
+        .test-card h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .test-card p {
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .test-card .actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .test-link {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .submissions-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .submission-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .submission-card h3 {
+            margin-bottom: 15px;
+        }
+        
+        .submission-detail {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .violation {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        #login-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .login-card h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="login-card">
+            <h2>🔐 Admin Login</h2>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="login-username" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="login-password" placeholder="admin123">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="login()">Login</button>
+        </div>
+    </div>
+    
+    <!-- Admin Dashboard -->
+    <div id="admin-screen" class="hidden">
+        <div class="navbar">
+            <h1>📊 Admin Dashboard</h1>
+            <button onclick="logout()">Logout</button>
+        </div>
+        
+        <div class="container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('create-test')">Create Test</button>
+                <button class="tab" onclick="switchTab('manage-tests')">Manage Tests</button>
+                <button class="tab" onclick="switchTab('submissions')">Submissions</button>
+                <button class="tab" onclick="switchTab('monitor')">Live Monitor</button>
+            </div>
+            
+            <!-- Create Test Tab -->
+            <div id="create-test" class="tab-content active">
+                <div class="card">
+                    <h2>Create New Test</h2>
+                    <form id="test-form">
+                        <div class="form-group">
+                            <label>Test Title</label>
+                            <input type="text" id="test-title" placeholder="Java Programming Test" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Duration (minutes)</label>
+                            <input type="number" id="test-duration" placeholder="60" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Instructions</label>
+                            <textarea id="test-instructions" rows="4" placeholder="Read all questions carefully..."></textarea>
+                        </div>
+                        
+                        <h3 style="margin: 30px 0 20px 0;">Questions</h3>
+                        <div id="questions-container"></div>
+                        
+                        <button type="button" class="btn btn-secondary" onclick="addQuestion()">+ Add Question</button>
+                        <button type="submit" class="btn btn-primary" style="margin-left: 10px;">Create Test</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Manage Tests Tab -->
+            <div id="manage-tests" class="tab-content">
+                <div class="card">
+                    <h2>All Tests</h2>
+                    <div id="tests-list" class="test-list"></div>
+                </div>
+            </div>
+            
+            <!-- Submissions Tab -->
+            <div id="submissions" class="tab-content">
+                <div class="card">
+                    <h2>Test Submissions</h2>
+                    <div id="submissions-list" class="submissions-list"></div>
+                </div>
+            </div>
+            
+            <!-- Monitor Tab -->
+            <div id="monitor" class="tab-content">
+                <div class="card">
+                    <h2>Live Monitoring</h2>
+                    <p>Open <a href="/monitor.html" target="_blank">Live Monitoring Dashboard</a> in a new tab to monitor active tests in real-time.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let questionCount = 0;
+        
+        // Check authentication
+        async function checkAuth() {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            
+            if (data.authenticated && data.role === 'admin') {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('admin-screen').classList.remove('hidden');
+                loadTests();
+                loadSubmissions();
+            }
+        }
+        
+        async function login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            
+            if (response.ok) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('admin-screen').classList.remove('hidden');
+                loadTests();
+                loadSubmissions();
+            } else {
+                alert('Invalid credentials');
+            }
+        }
+        
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            location.reload();
+        }
+        
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            if (tabName === 'manage-tests') loadTests();
+            if (tabName === 'submissions') loadSubmissions();
+        }
+        
+        function addQuestion() {
+            questionCount++;
+            const container = document.getElementById('questions-container');
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-item';
+            questionDiv.innerHTML = `
+                <h4>Question ${questionCount}</h4>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" class="question-title" placeholder="Sum of Two Numbers" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="question-description" rows="4" placeholder="Write a Java method that returns the sum of two integers..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Initial Code Template</label>
+                    <textarea class="question-template" rows="6" placeholder="public class Solution {
+    public int sum(int a, int b) {
+        // Your code here
+    }
+}"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Test Cases (Visible)</label>
+                    <div class="test-cases-visible"></div>
+                    <button type="button" class="btn btn-secondary" onclick="addTestCase(this, 'visible')">+ Add Visible Test Case</button>
+                </div>
+                <div class="form-group">
+                    <label>Test Cases (Hidden)</label>
+                    <div class="test-cases-hidden"></div>
+                    <button type="button" class="btn btn-secondary" onclick="addTestCase(this, 'hidden')">+ Add Hidden Test Case</button>
+                </div>
+                <button type="button" class="btn btn-danger" onclick="removeQuestion(this)">Remove Question</button>
+            `;
+            container.appendChild(questionDiv);
+        }
+        
+        function addTestCase(button, type) {
+            const container = button.previousElementSibling;
+            const testCaseDiv = document.createElement('div');
+            testCaseDiv.className = 'test-case';
+            testCaseDiv.innerHTML = `
+                <input type="text" placeholder="Input (e.g., 2, 3)" class="test-input" style="width: 45%; margin-right: 2%;">
+                <input type="text" placeholder="Expected Output (e.g., 5)" class="test-output" style="width: 45%; margin-right: 2%;">
+                <button type="button" class="btn btn-danger" style="padding: 8px 12px;" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(testCaseDiv);
+        }
+        
+        function removeQuestion(button) {
+            button.parentElement.remove();
+        }
+        
+        document.getElementById('test-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const questions = [];
+            document.querySelectorAll('.question-item').forEach((item, index) => {
+                const visibleTests = [];
+                item.querySelectorAll('.test-cases-visible .test-case').forEach(tc => {
+                    visibleTests.push({
+                        input: tc.querySelector('.test-input').value,
+                        output: tc.querySelector('.test-output').value
+                    });
+                });
+                
+                const hiddenTests = [];
+                item.querySelectorAll('.test-cases-hidden .test-case').forEach(tc => {
+                    hiddenTests.push({
+                        input: tc.querySelector('.test-input').value,
+                        output: tc.querySelector('.test-output').value
+                    });
+                });
+                
+                questions.push({
+                    id: index + 1,
+                    title: item.querySelector('.question-title').value,
+                    description: item.querySelector('.question-description').value,
+                    template: item.querySelector('.question-template').value,
+                    visibleTestCases: visibleTests,
+                    hiddenTestCases: hiddenTests
+                });
+            });
+            
+            const testData = {
+                title: document.getElementById('test-title').value,
+                duration: parseInt(document.getElementById('test-duration').value),
+                instructions: document.getElementById('test-instructions').value,
+                questions: questions
+            };
+            
+            const response = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(testData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                alert('Test created successfully!\n\nTest Link:\n' + result.test.link);
+                document.getElementById('test-form').reset();
+                document.getElementById('questions-container').innerHTML = '';
+                questionCount = 0;
+                switchTab('manage-tests');
+                loadTests();
+            }
+        });
+        
+        async function loadTests() {
+            const response = await fetch('/api/tests');
+            const tests = await response.json();
+            
+            const container = document.getElementById('tests-list');
+            container.innerHTML = '';
+            
+            tests.forEach(test => {
+                const testCard = document.createElement('div');
+                testCard.className = 'test-card';
+                testCard.innerHTML = `
+                    <h3>${test.title}</h3>
+                    <p><strong>Duration:</strong> ${test.duration} minutes</p>
+                    <p><strong>Questions:</strong> ${test.questions.length}</p>
+                    <p><strong>Created:</strong> ${new Date(test.createdAt).toLocaleString()}</p>
+                    <div class="test-link">
+                        ${test.link}
+                        <button class="copy-btn" onclick="copyToClipboard('${test.link}')">Copy</button>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-danger" onclick="deleteTest('${test.id}')">Delete</button>
+                    </div>
+                `;
+                container.appendChild(testCard);
+            });
+        }
+        
+        async function deleteTest(testId) {
+            if (confirm('Are you sure you want to delete this test?')) {
+                await fetch(`/api/tests/${testId}`, { method: 'DELETE' });
+                loadTests();
+            }
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text);
+            alert('Link copied to clipboard!');
+        }
+        
+        async function loadSubmissions() {
+            const response = await fetch('/api/submissions');
+            const submissions = await response.json();
+            
+            const container = document.getElementById('submissions-list');
+            container.innerHTML = '';
+            
+            submissions.forEach(sub => {
+                const subCard = document.createElement('div');
+                subCard.className = 'submission-card';
+                
+                const violations = sub.violations || [];
+                const violationsHTML = violations.length > 0 
+                    ? `<div class="violation">⚠️ ${violations.length} violation(s) detected</div>`
+                    : '';
+                
+                subCard.innerHTML = `
+                    <h3>${sub.candidateName}</h3>
+                    <div class="submission-detail"><strong>Email:</strong> ${sub.candidateEmail}</div>
+                    <div class="submission-detail"><strong>Test ID:</strong> ${sub.testId}</div>
+                    <div class="submission-detail"><strong>Started:</strong> ${new Date(sub.startTime).toLocaleString()}</div>
+                    <div class="submission-detail"><strong>Submitted:</strong> ${new Date(sub.endTime).toLocaleString()}</div>
+                    <div class="submission-detail"><strong>Tab Switches:</strong> ${sub.tabSwitches || 0}</div>
+                    ${violationsHTML}
+                    <button class="btn btn-primary" onclick="viewSubmission('${sub.id}')">View Details</button>
+                `;
+                container.appendChild(subCard);
+            });
+        }
+        
+        function viewSubmission(submissionId) {
+            window.open(`/submission.html?id=${submissionId}`, '_blank');
+        }
+        
+        // Initialize
+        checkAuth();
+    </script>
+</body>
+</html>

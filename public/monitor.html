@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Monitoring Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .header h1 {
+            font-size: 1.8em;
+        }
+        
+        .container {
+            padding: 30px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .sessions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .session-card {
+            background: #2d2d2d;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            border: 2px solid #3d3d3d;
+        }
+        
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #3d3d3d;
+        }
+        
+        .session-info h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .session-info p {
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        .status-badges {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .badge-success {
+            background: rgba(46, 213, 115, 0.2);
+            color: #2ed573;
+            border: 1px solid #2ed573;
+        }
+        
+        .badge-warning {
+            background: rgba(255, 165, 2, 0.2);
+            color: #ffa502;
+            border: 1px solid #ffa502;
+        }
+        
+        .badge-danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            border: 1px solid #ff4757;
+        }
+        
+        .video-feed {
+            width: 100%;
+            height: 250px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #3d3d3d;
+            overflow: hidden;
+        }
+        
+        .video-feed img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .video-feed.no-feed {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .code-preview {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            border: 2px solid #3d3d3d;
+        }
+        
+        .code-preview pre {
+            color: #f8f8f2;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85em;
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        .code-preview-header {
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .alerts-section {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .alert-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert-item.warning {
+            background: rgba(255, 165, 2, 0.1);
+            border-left: 4px solid #ffa502;
+        }
+        
+        .alert-item.danger {
+            background: rgba(255, 71, 87, 0.1);
+            border-left: 4px solid #ff4757;
+        }
+        
+        .alert-time {
+            color: #666;
+            font-size: 0.8em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-box {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .no-sessions {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+        
+        .no-sessions h2 {
+            margin-bottom: 10px;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔴 Live Monitoring Dashboard</h1>
+        <p>Real-time student monitoring with AI-powered proctoring</p>
+    </div>
+    
+    <div class="container">
+        <div id="sessions-container" class="sessions-grid">
+            <div class="no-sessions">
+                <h2>No Active Sessions</h2>
+                <p>Waiting for students to join tests...</p>
+                <div class="pulse" style="font-size: 3em; margin-top: 20px;">⏳</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const socket = io();
+        const activeSessions = {};
+        
+        // Join admin room
+        socket.emit('join-monitoring', { role: 'admin' });
+        
+        // Student connected
+        socket.on('student-connected', (data) => {
+            console.log('Student connected:', data);
+            addSessionCard(data.sessionId, data.session);
+        });
+        
+        // Receive video frames
+        socket.on('student-video-frame', (data) => {
+            const sessionCard = document.getElementById(`session-${data.sessionId}`);
+            if (sessionCard) {
+                const videoFeed = sessionCard.querySelector('.video-feed');
+                videoFeed.innerHTML = `<img src="${data.frame}" alt="Student video feed">`;
+                videoFeed.classList.remove('no-feed');
+            }
+        });
+        
+        // Receive code updates
+        socket.on('student-code-update', (data) => {
+            const sessionCard = document.getElementById(`session-${data.sessionId}`);
+            if (sessionCard) {
+                const codePreview = sessionCard.querySelector('.code-preview pre');
+                codePreview.textContent = data.code || '// No code yet...';
+                
+                const questionLabel = sessionCard.querySelector('.current-question');
+                questionLabel.textContent = `Question ${data.questionId}`;
+            }
+        });
+        
+        // Receive proctoring alerts
+        socket.on('proctoring-alert', (data) => {
+            const sessionCard = document.getElementById(`session-${data.sessionId}`);
+            if (sessionCard) {
+                const alertsSection = sessionCard.querySelector('.alerts-section');
+                const alertItem = document.createElement('div');
+                
+                const severity = data.alert.severity === 'high' ? 'danger' : 'warning';
+                const time = new Date(data.timestamp).toLocaleTimeString();
+                
+                alertItem.className = `alert-item ${severity}`;
+                alertItem.innerHTML = `
+                    <span>⚠️ ${data.alert.message}</span>
+                    <span class="alert-time">${time}</span>
+                `;
+                
+                alertsSection.insertBefore(alertItem, alertsSection.firstChild);
+                
+                // Update stats
+                if (!activeSessions[data.sessionId]) {
+                    activeSessions[data.sessionId] = { violations: 0 };
+                }
+                activeSessions[data.sessionId].violations++;
+                
+                const violationStat = sessionCard.querySelector('.violation-count');
+                violationStat.textContent = activeSessions[data.sessionId].violations;
+            }
+        });
+        
+        function addSessionCard(sessionId, session) {
+            // Remove "no sessions" message
+            const container = document.getElementById('sessions-container');
+            const noSessions = container.querySelector('.no-sessions');
+            if (noSessions) {
+                noSessions.remove();
+            }
+            
+            activeSessions[sessionId] = { violations: 0 };
+            
+            const card = document.createElement('div');
+            card.id = `session-${sessionId}`;
+            card.className = 'session-card';
+            card.innerHTML = `
+                <div class="session-header">
+                    <div class="session-info">
+                        <h3>${session.candidateName}</h3>
+                        <p>${session.candidateEmail}</p>
+                        <p style="font-size: 0.8em; color: #667eea;">Session: ${sessionId.substring(0, 8)}...</p>
+                    </div>
+                    <div class="status-badges">
+                        <span class="badge badge-success">🟢 Live</span>
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value violation-count">0</div>
+                        <div class="stat-label">Violations</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value tab-switch-count">0</div>
+                        <div class="stat-label">Tab Switches</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">
+                            <span class="current-question">-</span>
+                        </div>
+                        <div class="stat-label">Current Question</div>
+                    </div>
+                </div>
+                
+                <div class="video-feed no-feed">
+                    <span>Waiting for video feed...</span>
+                </div>
+                
+                <div class="code-preview">
+                    <div class="code-preview-header">
+                        <span>📝 Code Editor</span>
+                        <span style="color: #2ed573;">● LIVE</span>
+                    </div>
+                    <pre>// Waiting for code...</pre>
+                </div>
+                
+                <div class="alerts-section">
+                    <div style="color: #667eea; font-weight: bold; margin-bottom: 10px;">⚠️ Alerts & Violations</div>
+                    <div style="color: #666; text-align: center; padding: 20px;">No alerts yet</div>
+                </div>
+            `;
+            
+            container.appendChild(card);
+        }
+        
+        console.log('Monitoring dashboard ready. Waiting for students...');
+    </script>
+</body>
+</html>

@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding Test</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #f5f7fa;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .timer {
+            font-size: 1.5em;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .proctoring-status {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #2ed573;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-dot.warning {
+            background: #ffa502;
+        }
+        
+        .status-dot.error {
+            background: #ff4757;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 65px);
+        }
+        
+        .sidebar {
+            width: 320px;
+            background: #ffffff;
+            overflow-y: auto;
+            border-right: 2px solid #e1e8ed;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-bottom: 2px solid #e1e8ed;
+        }
+        
+        .sidebar-header h3 {
+            color: #333;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        
+        .progress-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .question-list {
+            padding: 20px;
+        }
+        
+        .question-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            border-left: 4px solid #e0e0e0;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .question-item:hover {
+            border-left-color: #667eea;
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        
+        .question-item.active {
+            border-left-color: #667eea;
+            background: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .question-item.answered {
+            border-left-color: #2ed573;
+        }
+        
+        .question-number {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 0.85em;
+        }
+        
+        .question-title {
+            font-size: 0.95em;
+            color: #333;
+            margin-top: 5px;
+        }
+        
+        .question-difficulty {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            margin-top: 8px;
+        }
+        
+        .difficulty-easy { background: #2ed57320; color: #2ed573; }
+        .difficulty-medium { background: #ffa50220; color: #ffa502; }
+        .difficulty-hard { background: #ff475720; color: #ff4757; }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+        
+        .question-display {
+            padding: 30px;
+            background: white;
+            border-bottom: 2px solid #e1e8ed;
+            max-height: 35%;
+            overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .question-display h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .question-display p {
+            color: #555;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+        }
+        
+        .test-cases-display {
+            margin-top: 25px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e1e8ed;
+        }
+        
+        .test-cases-display h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .test-case-item {
+            background: white;
+            padding: 15px;
+            margin: 12px 0;
+            border-radius: 8px;
+            border: 1px solid #e1e8ed;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        
+        .test-case-item strong {
+            color: #667eea;
+        }
+        
+        .test-case-item code {
+            background: #f0f4ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #333;
+        }
+        
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+        }
+        
+        .editor-toolbar {
+            background: #2d2d30;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e1e1e;
+        }
+        
+        .editor-toolbar select {
+            background: #3e3e42;
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .editor-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .btn-run {
+            background: #2ed573;
+            color: white;
+        }
+        
+        .btn-run:hover {
+            background: #26d367;
+        }
+        
+        .btn-submit {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-submit:hover {
+            background: #5568d3;
+        }
+        
+        .btn-custom {
+            background: #ffa502;
+            color: white;
+        }
+        
+        .btn-custom:hover {
+            background: #ff9502;
+        }
+        
+        .btn-reset {
+            background: #555;
+            color: white;
+        }
+        
+        .btn-reset:hover {
+            background: #444;
+        }
+        
+        #code-editor {
+            width: 100%;
+            border: none;
+            outline: none;
+        }
+        
+        .output-panel {
+            height: 220px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            overflow-y: auto;
+            border-top: 2px solid #2d2d30;
+        }
+        
+        .output-header {
+            background: #2d2d30;
+            padding: 10px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .output-header h4 {
+            color: #d4d4d4;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .output-content {
+            padding: 20px;
+        }
+        
+        .output-content pre {
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .test-result {
+            margin: 12px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .test-result.passed {
+            background: rgba(46, 213, 115, 0.1);
+            border-left-color: #2ed573;
+        }
+        
+        .test-result.failed {
+            background: rgba(255, 71, 87, 0.1);
+            border-left-color: #ff4757;
+        }
+        
+        .test-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .test-result-header strong {
+            color: #fff;
+        }
+        
+        .test-result-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .badge-passed {
+            background: #2ed573;
+            color: white;
+        }
+        
+        .badge-failed {
+            background: #ff4757;
+            color: white;
+        }
+        
+        .test-details {
+            color: #b0b0b0;
+            font-size: 0.9em;
+            line-height: 1.8;
+        }
+        
+        .test-details code {
+            background: #2d2d30;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #4ec9b0;
+        }
+        
+        #video-preview {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 220px;
+            height: 165px;
+            border-radius: 12px;
+            border: 3px solid #667eea;
+            object-fit: cover;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        #video-preview:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-size: 1.8em;
+        }
+        
+        .modal-content p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .modal-content input {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        .modal-content input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .warning-banner {
+            display: none;
+            background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(255, 71, 87, 0.3);
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        .warning-banner.active {
+            display: block;
+        }
+        
+        /* Custom Input Modal */
+        .custom-input-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .custom-input-overlay.active {
+            display: flex;
+        }
+        
+        .custom-input-container {
+            background: #2d2d30;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        
+        .custom-input-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .custom-input-header h3 {
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .close-custom-input {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.3em;
+            transition: all 0.3s;
+        }
+        
+        .close-custom-input:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+        
+        .custom-input-body {
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .input-section {
+            margin-bottom: 25px;
+        }
+        
+        .input-section label {
+            display: block;
+            color: #d4d4d4;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+        
+        .input-section textarea {
+            width: 100%;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 2px solid #3e3e42;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.95em;
+            resize: vertical;
+            min-height: 120px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .input-hint {
+            color: #888;
+            font-size: 0.85em;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        
+        .custom-input-footer {
+            padding: 20px 30px;
+            background: #252526;
+            border-top: 1px solid #3e3e42;
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .submit-test-section {
+            padding: 20px;
+            border-top: 2px solid #e1e8ed;
+            background: #f8f9fa;
+        }
+        
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .output-panel::-webkit-scrollbar-track,
+        .sidebar::-webkit-scrollbar-track {
+            background: #2d2d30;
+        }
+        
+        .output-panel::-webkit-scrollbar-thumb,
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <!-- Warning Banner -->
+    <div id="warning-banner" class="warning-banner">
+        ⚠️ WARNING: Suspicious activity detected! Looking away from screen.
+    </div>
+    
+    <!-- Candidate Info Modal -->
+    <div id="info-modal" class="modal active">
+        <div class="modal-content">
+            <h2>🎓 Welcome to Your Coding Test</h2>
+            <p>Please enter your details to begin</p>
+            <input type="text" id="candidate-name" placeholder="Your Full Name" required>
+            <input type="email" id="candidate-email" placeholder="Your Email Address" required>
+            <button class="btn btn-submit" onclick="startTest()" style="width: 100%; margin-top: 20px;">
+                Start Test
+            </button>
+        </div>
+    </div>
+    
+    <!-- Permissions Modal -->
+    <div id="permissions-modal" class="modal">
+        <div class="modal-content">
+            <h2>🎥 Enable Camera & Microphone</h2>
+            <p>This test requires camera and microphone access for proctoring purposes. Your privacy is protected and recordings are only used for test verification.</p>
+            <button class="btn btn-submit" onclick="requestPermissions()" style="width: 100%; margin-top: 20px;">
+                Enable Access
+            </button>
+        </div>
+    </div>
+    
+    <!-- Custom Input Modal -->
+    <div id="custom-input-overlay" class="custom-input-overlay">
+        <div class="custom-input-container">
+            <div class="custom-input-header">
+                <h3>
+                    <span>⚡</span>
+                    Custom Test Input
+                </h3>
+                <button class="close-custom-input" onclick="closeCustomInput()">×</button>
+            </div>
+            <div class="custom-input-body">
+                <div class="input-section">
+                    <label>Enter Your Custom Input:</label>
+                    <textarea id="custom-input-field" placeholder="Type your input here...&#10;&#10;Example:&#10;5&#10;1 2 3 4 5"></textarea>
+                    <div class="input-hint">💡 Enter input exactly as you would in the console (line by line)</div>
+                </div>
+                <div class="input-section">
+                    <label>Expected Output (Optional):</label>
+                    <textarea id="custom-output-field" placeholder="Enter expected output to compare results..."></textarea>
+                    <div class="input-hint">💡 This helps you verify if your code produces the expected result</div>
+                </div>
+            </div>
+            <div class="custom-input-footer">
+                <button class="btn btn-reset" onclick="closeCustomInput()">Cancel</button>
+                <button class="btn btn-run" onclick="executeCustomInput()">
+                    ▶ Run Code
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h2 id="test-title">Loading Test...</h2>
+        </div>
+        <div class="proctoring-status">
+            <div class="status-indicator">
+                <div class="status-dot" id="camera-status"></div>
+                <span>Camera</span>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="mic-status"></div>
+                <span>Mic</span>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="focus-status"></div>
+                <span>Focus</span>
+            </div>
+            <div class="timer" id="timer">00:00</div>
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>Questions</h3>
+                <div class="progress-stats">
+                    <div class="stat-item">
+                        <div class="stat-number" id="answered-count">0</div>
+                        <div class="stat-label">Answered</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="total-count">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                </div>
+            </div>
+            <div class="question-list" id="question-list"></div>
+            <div class="submit-test-section">
+                <button class="btn btn-submit" onclick="submitTest()" style="width: 100%;">
+                    📤 Submit Test
+                </button>
+            </div>
+        </div>
+        
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Question Display -->
+            <div class="question-display" id="question-display">
+                <h2>Select a question to begin</h2>
+                <p>Choose any question from the sidebar to start coding</p>
+            </div>
+            
+            <!-- Code Editor -->
+            <div class="editor-container">
+                <div class="editor-toolbar">
+                    <select id="language-select" onchange="changeLanguage()">
+                        <option value="javascript">JavaScript</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                        <option value="csharp">C#</option>
+                    </select>
+                    <div class="editor-actions">
+                        <button class="btn btn-reset" onclick="resetCode()" title="Reset to template">
+                            🔄 Reset
+                        </button>
+                        <button class="btn btn-custom" onclick="openCustomInput()">
+                            ⚡ Custom Input
+                        </button>
+                        <button class="btn btn-run" onclick="runCode()">
+                            ▶ Run Tests
+                        </button>
+                        <button class="btn btn-submit" onclick="submitQuestion()">
+                            ✓ Submit Question
+                        </button>
+                    </div>
+                </div>
+                <div id="code-editor" style="height: calc(100% - 305px);"></div>
+                <div class="output-panel">
+                    <div class="output-header">
+                        <h4>Output Console</h4>
+                        <span style="font-size: 0.85em; color: #888;">Test Results</span>
+                    </div>
+                    <div class="output-content" id="output-panel">
+                        <pre>Output will appear here after running tests...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Video Preview -->
+    <video id="video-preview" autoplay muted></video>
+    
+    <!-- Hidden canvas for AI analysis -->
+    <canvas id="ai-canvas" style="display: none;"></canvas>
+    
+    <script>
+        let socket;
+        let testData = null;
+        let sessionId = null;
+        let currentQuestionIndex = 0;
+        let answers = {};
+        let timeRemaining = 0;
+        let timerInterval = null;
+        let videoStream = null;
+        let aiInterval = null;
+        let tabSwitchCount = 0;
+        let isTestActive = false;
+        let editor = null;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const testId = urlParams.get('id');
+        
+        // Mock test data for fallback only
+        const MOCK_TEST_DATA = {
+            id: testId || '1',
+            title: 'JavaScript & Algorithm Test',
+            duration: 60,
+            questions: [
+                {
+                    id: 'q1',
+                    title: 'Two Sum',
+                    difficulty: 'easy',
+                    description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.',
+                    visibleTestCases: [
+                        { input: '[2,7,11,15], 9', output: '[0,1]' },
+                        { input: '[3,2,4], 6', output: '[1,2]' },
+                        { input: '[3,3], 6', output: '[0,1]' }
+                    ],
+                    template: 'function twoSum(nums, target) {\n    // Write your code here\n    \n}'
+                },
+                {
+                    id: 'q2',
+                    title: 'Reverse String',
+                    difficulty: 'easy',
+                    description: 'Write a function that reverses a string. The input string is given as an array of characters s.\n\nYou must do this by modifying the input array in-place with O(1) extra memory.',
+                    visibleTestCases: [
+                        { input: '["h","e","l","l","o"]', output: '["o","l","l","e","h"]' },
+                        { input: '["H","a","n","n","a","h"]', output: '["h","a","n","n","a","H"]' }
+                    ],
+                    template: 'function reverseString(s) {\n    // Write your code here\n    \n}'
+                },
+                {
+                    id: 'q3',
+                    title: 'Valid Palindrome',
+                    difficulty: 'medium',
+                    description: 'A phrase is a palindrome if, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward.\n\nGiven a string s, return true if it is a palindrome, or false otherwise.',
+                    visibleTestCases: [
+                        { input: '"A man, a plan, a canal: Panama"', output: 'true' },
+                        { input: '"race a car"', output: 'false' },
+                        { input: '" "', output: 'true' }
+                    ],
+                    template: 'function isPalindrome(s) {\n    // Write your code here\n    \n}'
+                }
+            ]
+        };
+        
+        // Load Monaco Editor
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+        
+        function initMonacoEditor() {
+            require(['vs/editor/editor.main'], function() {
+                editor = monaco.editor.create(document.getElementById('code-editor'), {
+                    value: '// Write your code here\n',
+                    language: 'javascript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    fontSize: 14,
+                    minimap: { enabled: true },
+                    scrollBeyondLastLine: false,
+                    lineNumbers: 'on',
+                    roundedSelection: false,
+                    readOnly: false,
+                    cursorStyle: 'line',
+                    wordWrap: 'on',
+                    tabSize: 2
+                });
+                
+                // Listen for code changes
+                editor.onDidChangeModelContent(() => {
+                    if (socket && isTestActive && testData) {
+                        const question = testData.questions[currentQuestionIndex];
+                        answers[question.id] = {
+                            questionId: question.id,
+                            code: editor.getValue(),
+                            language: document.getElementById('language-select').value,
+                            lastModified: new Date().toISOString()
+                        };
+                        
+                        socket.emit('code-update', {
+                            sessionId,
+                            questionId: question.id,
+                            code: editor.getValue()
+                        });
+                    }
+                });
+            });
+        }
+        
+        // Initialize Monaco when DOM is ready
+        window.addEventListener('load', () => {
+            initMonacoEditor();
+            if (testId) {
+                loadTest();
+            } else {
+                alert('No test ID provided');
+                // For demo purposes, load mock data anyway
+                loadTest();
+            }
+        });
+        
+        // Load test data
+        async function loadTest() {
+            try {
+                if (!testId) {
+                    throw new Error('No test ID provided');
+                }
+                
+                // Fetch from API
+                const response = await fetch(`/api/tests/${testId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Test not found');
+                }
+                
+                testData = await response.json();
+                
+                document.getElementById('test-title').textContent = testData.title;
+                document.getElementById('total-count').textContent = testData.questions.length;
+                timeRemaining = testData.duration * 60;
+                
+                // Render question list
+                const questionList = document.getElementById('question-list');
+                questionList.innerHTML = '';
+                
+                testData.questions.forEach((q, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'question-item';
+                    div.innerHTML = `
+                        <div class="question-number">Question ${index + 1}</div>
+                        <div class="question-title">${q.title}</div>
+                        <span class="question-difficulty difficulty-${q.difficulty}">${q.difficulty.toUpperCase()}</span>
+                    `;
+                    div.onclick = () => loadQuestion(index);
+                    questionList.appendChild(div);
+                });
+                
+            } catch (error) {
+                console.error('Error loading test:', error);
+                alert('Error loading test: ' + error.message + '\n\nPlease check the test ID and try again.');
+                // Fallback to mock data for demo
+                testData = MOCK_TEST_DATA;
+                document.getElementById('test-title').textContent = testData.title + ' (Demo Mode)';
+                document.getElementById('total-count').textContent = testData.questions.length;
+                timeRemaining = testData.duration * 60;
+                
+                const questionList = document.getElementById('question-list');
+                questionList.innerHTML = '';
+                testData.questions.forEach((q, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'question-item';
+                    div.innerHTML = `
+                        <div class="question-number">Question ${index + 1}</div>
+                        <div class="question-title">${q.title}</div>
+                        <span class="question-difficulty difficulty-${q.difficulty}">${q.difficulty.toUpperCase()}</span>
+                    `;
+                    div.onclick = () => loadQuestion(index);
+                    questionList.appendChild(div);
+                });
+            }
+        }
+        
+        async function startTest() {
+            const name = document.getElementById('candidate-name').value.trim();
+            const email = document.getElementById('candidate-email').value.trim();
+            
+            if (!name || !email) {
+                alert('Please enter your name and email');
+                return;
+            }
+            
+            // Validate email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+            
+            try {
+                // Start session with API
+                const response = await fetch('/api/test-session/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        testId,
+                        candidateName: name,
+                        candidateEmail: email
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to start test session');
+                }
+                
+                const data = await response.json();
+                sessionId = data.sessionId;
+                
+                document.getElementById('info-modal').classList.remove('active');
+                document.getElementById('permissions-modal').classList.add('active');
+                
+            } catch (error) {
+                console.error('Error starting test:', error);
+                alert('Error starting test: ' + error.message + '\n\nPlease try again.');
+            }
+        }
+        
+        async function requestPermissions() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 1280, height: 720 },
+                    audio: true
+                });
+                
+                document.getElementById('video-preview').srcObject = videoStream;
+                document.getElementById('camera-status').style.background = '#2ed573';
+                document.getElementById('mic-status').style.background = '#2ed573';
+                
+                document.getElementById('permissions-modal').classList.remove('active');
+                
+                // Initialize Socket.IO (if available)
+                try {
+                    socket = io();
+                    socket.emit('join-monitoring', { sessionId });
+                } catch (e) {
+                    console.log('Socket.IO not available, continuing without real-time monitoring');
+                }
+                
+                // Start test
+                isTestActive = true;
+                startTimer();
+                loadQuestion(0);
+                startProctoring();
+                setupTabDetection();
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                // For demo, continue without camera
+                if (confirm('Camera access denied. Continue without proctoring? (Not recommended for real tests)')) {
+                    document.getElementById('permissions-modal').classList.remove('active');
+                    isTestActive = true;
+                    startTimer();
+                    loadQuestion(0);
+                    setupTabDetection();
+                }
+            }
+        }
+        
+        function startTimer() {
+            const timerElement = document.getElementById('timer');
+            
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                timerElement.textContent = 
+                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    alert('Time is up! Submitting your test...');
+                    submitTest();
+                }
+                
+                // Update timer color
+                if (timeRemaining < 300) {
+                    timerElement.style.color = '#ff4757';
+                } else if (timeRemaining < 600) {
+                    timerElement.style.color = '#ffa502';
+                }
+            }, 1000);
+        }
+        
+        function loadQuestion(index) {
+            if (!testData || !testData.questions[index]) {
+                console.error('Question not found');
+                return;
+            }
+            
+            currentQuestionIndex = index;
+            const question = testData.questions[index];
+            
+            // Update sidebar
+            document.querySelectorAll('.question-item').forEach((item, i) => {
+                item.classList.remove('active');
+                if (i === index) item.classList.add('active');
+            });
+            
+            // Display question
+            const display = document.getElementById('question-display');
+            let testCasesHTML = '<div class="test-cases-display"><h3>📋 Test Cases:</h3>';
+            question.visibleTestCases.forEach((tc, i) => {
+                testCasesHTML += `
+                    <div class="test-case-item">
+                        <strong>Test Case ${i + 1}:</strong><br>
+                        <strong>Input:</strong> <code>${tc.input}</code><br>
+                        <strong>Expected Output:</strong> <code>${tc.output}</code>
+                    </div>
+                `;
+            });
+            testCasesHTML += '</div>';
+            
+            display.innerHTML = `
+                <h2>Question ${index + 1}: ${question.title}</h2>
+                <span class="question-difficulty difficulty-${question.difficulty}">${question.difficulty.toUpperCase()}</span>
+                <p>${question.description}</p>
+                ${testCasesHTML}
+            `;
+            
+            // Load code into Monaco editor
+            if (editor) {
+                const code = answers[question.id]?.code || question.template || '// Write your code here\n';
+                editor.setValue(code);
+            }
+            
+            // Clear output
+            document.getElementById('output-panel').innerHTML = '<pre>Output will appear here after running tests...</pre>';
+        }
+        
+        function changeLanguage() {
+            const lang = document.getElementById('language-select').value;
+            if (editor) {
+                monaco.editor.setModelLanguage(editor.getModel(), lang);
+            }
+        }
+        
+        function resetCode() {
+            if (confirm('Are you sure you want to reset your code to the template?')) {
+                const question = testData.questions[currentQuestionIndex];
+                if (editor && question.template) {
+                    editor.setValue(question.template);
+                }
+            }
+        }
+        
+        async function runCode() {
+            const question = testData.questions[currentQuestionIndex];
+            const code = editor.getValue();
+            const language = document.getElementById('language-select').value;
+            
+            const outputPanel = document.getElementById('output-panel');
+            outputPanel.innerHTML = '<pre>🔄 Running tests...</pre>';
+            
+            try {
+                // Execute code via API
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code,
+                        testCases: question.visibleTestCases,
+                        language
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Code execution failed');
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Execution failed');
+                }
+                
+                let output = '<div>';
+                const summary = result.summary || {
+                    passed: result.results.filter(r => r.passed).length,
+                    total: result.results.length
+                };
+                
+                output = `
+                    <div style="padding: 15px; background: #2d2d30; border-bottom: 1px solid #3e3e42; margin-bottom: 10px;">
+                        <strong style="color: ${summary.passed === summary.total ? '#2ed573' : '#ffa502'};">
+                            ${summary.passed} / ${summary.total} Tests Passed
+                        </strong>
+                        ${summary.percentage ? ` (${summary.percentage}%)` : ''}
+                    </div>
+                `;
+                
+                result.results.forEach(r => {
+                    const status = r.passed ? 'passed' : 'failed';
+                    output += `
+                        <div class="test-result ${status}">
+                            <div class="test-result-header">
+                                <strong>Test Case ${r.testCase}</strong>
+                                <span class="test-result-badge badge-${status}">
+                                    ${r.passed ? '✓ PASSED' : '✗ FAILED'}
+                                </span>
+                            </div>
+                            <div class="test-details">
+                                <strong>Input:</strong> <code>${r.input}</code><br>
+                                <strong>Expected:</strong> <code>${r.expectedOutput}</code><br>
+                                <strong>Got:</strong> <code>${r.actualOutput || '(no output)'}</code><br>
+                                ${r.error ? `<strong style="color: #ff4757;">Error:</strong> ${r.error}<br>` : ''}
+                                <strong>Execution Time:</strong> ${r.executionTime.toFixed(2)}ms
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                output += '</div>';
+                outputPanel.innerHTML = output;
+                
+            } catch (error) {
+                console.error('Execution error:', error);
+                outputPanel.innerHTML = `
+                    <div class="test-result failed">
+                        <strong>❌ Execution Error</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function openCustomInput() {
+            document.getElementById('custom-input-overlay').classList.add('active');
+            document.getElementById('custom-input-field').value = '';
+            document.getElementById('custom-output-field').value = '';
+        }
+        
+        function closeCustomInput() {
+            document.getElementById('custom-input-overlay').classList.remove('active');
+        }
+        
+        async function executeCustomInput() {
+            const customInput = document.getElementById('custom-input-field').value;
+            const expectedOutput = document.getElementById('custom-output-field').value;
+            const code = editor.getValue();
+            const language = document.getElementById('language-select').value;
+            
+            if (!customInput.trim() && !code.trim()) {
+                alert('Please enter some input and code');
+                return;
+            }
+            
+            const outputPanel = document.getElementById('output-panel');
+            outputPanel.innerHTML = '<pre>🔄 Executing with custom input...</pre>';
+            
+            closeCustomInput();
+            
+            try {
+                // Execute with custom input via API
+                const response = await fetch('/api/execute/custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code,
+                        customInput,
+                        language
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Execution failed');
+                }
+                
+                const result = await response.json();
+                
+                const actualOutput = result.output || '';
+                const passed = expectedOutput ? actualOutput.trim() === expectedOutput.trim() : null;
+                
+                let html = `
+                    <div style="padding: 15px; background: #2d2d30; border-bottom: 1px solid #3e3e42; margin-bottom: 10px;">
+                        <strong style="color: #667eea;">⚡ Custom Input Execution</strong>
+                    </div>
+                    <div class="test-result ${passed === true ? 'passed' : passed === false ? 'failed' : result.hasError ? 'failed' : ''}">
+                        <div class="test-result-header">
+                            <strong>Custom Test Case</strong>
+                            ${passed !== null ? `<span class="test-result-badge badge-${passed ? 'passed' : 'failed'}">${passed ? '✓ PASSED' : '✗ FAILED'}</span>` : ''}
+                        </div>
+                        <div class="test-details">
+                            <strong>Input:</strong><br>
+                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${customInput || '(no input)'}</code><br>
+                            ${expectedOutput ? `<strong>Expected Output:</strong><br><code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${expectedOutput}</code><br>` : ''}
+                            <strong>Actual Output:</strong><br>
+                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${actualOutput || '(no output)'}</code><br>
+                            ${result.stderr ? `<strong style="color: #ff4757;">Error Output:</strong><br><code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px; color: #ff4757;">${result.stderr}</code><br>` : ''}
+                            ${result.error ? `<strong style="color: #ff4757;">Error:</strong> ${result.error}<br>` : ''}
+                            <strong>Execution Time:</strong> ${result.executionTime ? result.executionTime.toFixed(2) + 'ms' : 'N/A'}
+                        </div>
+                    </div>
+                `;
+                
+                outputPanel.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Custom execution error:', error);
+                outputPanel.innerHTML = `
+                    <div class="test-result failed">
+                        <strong>❌ Execution Error</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function submitQuestion() {
+            const question = testData.questions[currentQuestionIndex];
+            const code = editor.getValue();
+            const language = document.getElementById('language-select').value;
+            
+            if (!code.trim() || code.trim() === '// Write your code here') {
+                if (!confirm('Your code appears to be empty. Submit anyway?')) {
+                    return;
+                }
+            }
+            
+            answers[question.id] = {
+                questionId: question.id,
+                code: code,
+                language: language,
+                submittedAt: new Date().toISOString()
+            };
+            
+            // Mark as answered
+            document.querySelectorAll('.question-item')[currentQuestionIndex].classList.add('answered');
+            
+            // Update answered count
+            const answeredCount = Object.keys(answers).length;
+            document.getElementById('answered-count').textContent = answeredCount;
+            
+            alert('✓ Question submitted successfully!');
+            
+            // Move to next question if available
+            if (currentQuestionIndex < testData.questions.length - 1) {
+                loadQuestion(currentQuestionIndex + 1);
+            }
+        }
+        
+        async function submitTest() {
+            const answeredCount = Object.keys(answers).length;
+            const totalQuestions = testData.questions.length;
+            
+            if (answeredCount === 0) {
+                if (!confirm('You haven\'t answered any questions. Are you sure you want to submit?')) {
+                    return;
+                }
+            } else if (answeredCount < totalQuestions) {
+                if (!confirm(`You've answered ${answeredCount} out of ${totalQuestions} questions. Submit anyway?`)) {
+                    return;
+                }
+            } else {
+                if (!confirm('Are you sure you want to submit your test?')) {
+                    return;
+                }
+            }
+            
+            isTestActive = false;
+            clearInterval(timerInterval);
+            clearInterval(aiInterval);
+            
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+            
+            try {
+                // Submit to API
+                const response = await fetch('/api/test-session/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId,
+                        answers
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to submit test');
+                }
+                
+                const result = await response.json();
+                
+                alert('✓ Test submitted successfully!\n\nThank you for completing the test.');
+                
+                // Show success message or redirect
+                document.body.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div style="background: white; padding: 50px; border-radius: 20px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                            <div style="font-size: 80px; margin-bottom: 20px;">✅</div>
+                            <h1 style="color: #2c3e50; margin-bottom: 15px;">Test Submitted Successfully!</h1>
+                            <p style="color: #666; margin-bottom: 20px;">Submission ID: ${result.submissionId}</p>
+                            <p style="color: #888;">Your answers have been recorded. You may now close this window.</p>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error submitting test:', error);
+                alert('Error submitting test: ' + error.message + '\n\nPlease try again or contact support.');
+                
+                // Restore test state
+                isTestActive = true;
+                if (!timerInterval) {
+                    startTimer();
+                }
+            }
+        }
+        
+        // Proctoring functions
+        function startProctoring() {
+            const canvas = document.getElementById('ai-canvas');
+            const ctx = canvas.getContext('2d');
+            const video = document.getElementById('video-preview');
+            
+            canvas.width = 320;
+            canvas.height = 240;
+            
+            aiInterval = setInterval(() => {
+                if (!isTestActive) return;
+                
+                try {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const frame = canvas.toDataURL('image/jpeg', 0.5);
+                    
+                    if (socket) {
+                        socket.emit('video-frame', { sessionId, frame });
+                    }
+                    
+                    analyzeFrame(frame);
+                } catch (e) {
+                    console.log('Proctoring frame capture error:', e);
+                }
+                
+            }, 3000);
+        }
+        
+        async function analyzeFrame(frameData) {
+            // Mock AI detection for demo
+            const random = Math.random();
+            
+            if (random < 0.05) {
+                const warning = document.getElementById('warning-banner');
+                warning.textContent = '⚠️ WARNING: Please keep your eyes on the screen';
+                warning.classList.add('active');
+                
+                if (socket) {
+                    socket.emit('proctoring-alert', {
+                        sessionId,
+                        alert: {
+                            type: 'looking_away',
+                            severity: 'medium',
+                            timestamp: new Date().toISOString()
+                        }
+                    });
+                }
+                
+                setTimeout(() => {
+                    warning.classList.remove('active');
+                }, 3000);
+            }
+        }
+        
+        function setupTabDetection() {
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && isTestActive) {
+                    tabSwitchCount++;
+                    document.getElementById('focus-status').style.background = '#ff4757';
+                    
+                    if (socket) {
+                        socket.emit('proctoring-alert', {
+                            sessionId,
+                            alert: {
+                                type: 'tab_switch',
+                                severity: 'high',
+                                count: tabSwitchCount,
+                                timestamp: new Date().toISOString()
+                            }
+                        });
+                    }
+                    
+                    if (tabSwitchCount >= 3) {
+                        alert(`⚠️ WARNING: You have switched tabs ${tabSwitchCount} times. This is being recorded.`);
+                    }
+                } else if (!document.hidden) {
+                    document.getElementById('focus-status').style.background = '#2ed573';
+                }
+            });
+            
+            window.addEventListener('blur', () => {
+                if (isTestActive) {
+                    document.getElementById('focus-status').style.background = '#ffa502';
+                }
+            });
+            
+            window.addEventListener('focus', () => {
+                if (isTestActive) {
+                    document.getElementById('focus-status').style.background = '#2ed573';
+                }
+            });
+        }
+        
+        // Prevent copying
+        document.addEventListener('copy', (e) => {
+            if (isTestActive) {
+                e.preventDefault();
+                alert('⚠️ Copying is disabled during the test');
+                return false;
+            }
+        });
+        
+        // Prevent cut
+        document.addEventListener('cut', (e) => {
+            if (isTestActive) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Prevent right-click
+        document.addEventListener('contextmenu', (e) => {
+            if (isTestActive) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Prevent keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (isTestActive) {
+                // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+                if (e.keyCode === 123 || 
+                    (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
+                    (e.ctrlKey && e.keyCode === 85)) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+    </script>
+    
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+</body>
+</html>
