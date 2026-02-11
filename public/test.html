@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -60,8 +61,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         /* Question Navigation Bar */
@@ -333,9 +341,17 @@
             font-weight: bold;
         }
 
-        .summary-main.all-passed { color: #2ed573; }
-        .summary-main.some-failed { color: #ffa502; }
-        .summary-main.all-failed { color: #ff4757; }
+        .summary-main.all-passed {
+            color: #2ed573;
+        }
+
+        .summary-main.some-failed {
+            color: #ffa502;
+        }
+
+        .summary-main.all-failed {
+            color: #ff4757;
+        }
 
         .test-result {
             margin: 15px 0;
@@ -478,8 +494,57 @@
         .output-panel::-webkit-scrollbar-thumb {
             background: #555;
         }
+
+        /* Main Template Display Section */
+        .main-template-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: #fff8f0;
+            border-radius: 10px;
+            border-left: 4px solid #ff4757;
+        }
+
+        .main-template-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.05em;
+        }
+
+        .locked-badge {
+            background: #ff4757;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .template-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #856404;
+        }
+
+        .template-display {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 </head>
+
 <body>
     <div id="info-modal" class="modal active">
         <div class="modal-content">
@@ -527,16 +592,29 @@
 
     <div class="main-container">
         <!-- 30% Description Panel -->
-        <div class="description-panel">
-            <div class="question-header">
-                <h2 id="question-title">Select a question to begin</h2>
-                <div class="question-meta" id="question-meta"></div>
-            </div>
-            <div class="question-content">
-                <p id="question-description">Choose a question from the navigation bar above to start coding.</p>
-                <div id="test-cases-container"></div>
+         <div class="description-panel">
+        <div class="question-header">
+            <h2 id="question-title">Select a question to begin</h2>
+            <div class="question-meta" id="question-meta"></div>
+        </div>
+        <div class="question-content">
+            <p id="question-description">Choose a question from the navigation bar above to start coding.</p>
+            <div id="test-cases-container"></div>
+            
+            <!-- Main template section -->
+            <div class="main-template-section" id="main-template-section" style="display: none;">
+                <h3>
+                    🔒 Main Function Template
+                    <span class="locked-badge">READ-ONLY</span>
+                </h3>
+                <div class="template-warning">
+                    <strong>⚠️ LOCKED:</strong> This code executes your solution and cannot be edited.
+                    <br>Your Solution class/function will be called from this main function.
+                </div>
+                <pre id="main-template-display" class="template-display"></pre>
             </div>
         </div>
+    </div>
 
         <!-- 70% Editor Panel -->
         <div class="editor-panel">
@@ -561,6 +639,18 @@
                     <pre>Click "Run Tests" to execute your code...</pre>
                 </div>
             </div>
+        </div>
+        <!-- LOCKED MAIN TEMPLATE DISPLAY -->
+        <div class="main-template-section" id="main-template-section" style="display: none;">
+            <h3>
+                🔒 Main Function Template
+                <span class="locked-badge">READ-ONLY</span>
+            </h3>
+            <div class="template-warning">
+                <strong>⚠️ LOCKED:</strong> This code executes your solution and cannot be edited.
+                <br>Your Solution class/function will be called from this main function.
+            </div>
+            <pre id="main-template-display" class="template-display"></pre>
         </div>
     </div>
 
@@ -619,13 +709,40 @@
                     }
                 });
             });
+            // ✅ Handle language selector changes
+            document.getElementById('language-select').addEventListener('change', (e) => {
+                const newLang = e.target.value;
+                const question = testData.questions[currentQuestionIndex];
+
+                // Update Monaco editor language
+                if (editor) {
+                    const languageMap = {
+                        'java': 'java',
+                        'python': 'python',
+                        'javascript': 'javascript'
+                    };
+                    monaco.editor.setModelLanguage(editor.getModel(), languageMap[newLang] || 'java');
+                }
+
+                // Save current answer with new language
+                if (question) {
+                    answers[question.id] = {
+                        questionId: question.id,
+                        code: editor.getValue(),
+                        language: newLang,
+                        lastModified: new Date().toISOString()
+                    };
+                }
+
+                console.log(`Language changed to: ${newLang}`);
+            });
         }
 
         async function loadTest() {
             try {
                 const response = await fetch(`/api/tests/${testId}`);
                 if (!response.ok) throw new Error('Test not found');
-                
+
                 testData = await response.json();
                 document.getElementById('test-title').textContent = testData.title;
                 renderQuestionNav();
@@ -637,7 +754,7 @@
         function renderQuestionNav() {
             const container = document.getElementById('question-nav-buttons');
             container.innerHTML = '';
-            
+
             testData.questions.forEach((q, index) => {
                 const btn = document.createElement('button');
                 btn.className = 'question-number-btn';
@@ -649,7 +766,7 @@
 
         function loadQuestion(index) {
             if (!testData || !testData.questions[index]) return;
-            
+
             currentQuestionIndex = index;
             const question = testData.questions[index];
 
@@ -663,26 +780,41 @@
             // Update description
             document.getElementById('question-title').textContent = `Question ${index + 1}: ${question.title}`;
             document.getElementById('question-description').textContent = question.description;
-            
+
             const metaDiv = document.getElementById('question-meta');
             metaDiv.innerHTML = `<span class="meta-badge difficulty-${question.difficulty || 'easy'}">${(question.difficulty || 'easy').toUpperCase()}</span>`;
 
             // Show test cases
             const testCasesContainer = document.getElementById('test-cases-container');
             testCasesContainer.innerHTML = `
-                <div class="test-cases-section">
-                    <h3>📋 Example Test Cases:</h3>
-                    ${question.visibleTestCases.map((tc, i) => `
-                        <div class="test-case">
-                            <strong>Test Case ${i + 1}:</strong><br>
-                            <strong>Input:</strong> <code>${tc.input}</code><br>
-                            <strong>Expected Output:</strong> <code>${tc.output}</code>
-                        </div>
-                    `).join('')}
+        <div class="test-cases-section">
+            <h3>📋 Example Test Cases:</h3>
+            ${question.visibleTestCases.map((tc, i) => `
+                <div class="test-case">
+                    <strong>Test Case ${i + 1}:</strong><br>
+                    <strong>Input:</strong> <code>${tc.input}</code><br>
+                    <strong>Expected Output:</strong> <code>${tc.output}</code>
                 </div>
-            `;
+            `).join('')}
+        </div>
+    `;
 
-            // Load code
+            // ✅ CRITICAL FIX: Show locked main template
+            const mainTemplateSection = document.getElementById('main-template-section');
+            const mainTemplateDisplay = document.getElementById('main-template-display');
+
+            if (question.mainTemplate) {
+                mainTemplateSection.style.display = 'block';
+                mainTemplateDisplay.textContent = question.mainTemplate;
+
+                // Add syntax highlighting hint
+                const lang = document.getElementById('language-select').value;
+                mainTemplateDisplay.className = `template-display language-${lang}`;
+            } else {
+                mainTemplateSection.style.display = 'none';
+            }
+
+            // Load ONLY the editable solution code
             if (editor) {
                 const code = answers[question.id]?.code || question.template || '// Write your code here\n';
                 editor.setValue(code);
@@ -692,14 +824,27 @@
             document.getElementById('output-panel').innerHTML = '<pre>Click "Run Tests" to execute your code...</pre>';
         }
 
+
         async function runCode() {
             const question = testData.questions[currentQuestionIndex];
             const code = editor.getValue();
             const mainTemplate = question.mainTemplate;
+            const language = document.getElementById('language-select').value;
+
+            if (!mainTemplate) {
+                document.getElementById('output-panel').innerHTML = `
+            <div class="test-result failed">
+                <strong>❌ Configuration Error:</strong>
+                <br>This question does not have a main template configured.
+                <br>Please contact the administrator.
+            </div>
+        `;
+                return;
+            }
 
             const runBtn = document.getElementById('run-btn');
             runBtn.disabled = true;
-            runBtn.innerHTML = '⏳ Running...';
+            runBtn.innerHTML = '⏳ Running Tests...';
 
             try {
                 const response = await fetch('/api/execute', {
@@ -709,16 +854,35 @@
                         solutionCode: code,
                         mainTemplate: mainTemplate,
                         testCases: question.visibleTestCases,
-                        language: 'java',
+                        language: language,
                         questionId: question.id,
                         sessionId: sessionId
                     })
                 });
 
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || errorData.message || 'Execution failed');
+                }
+
                 const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Execution failed');
+                }
+
                 displayTestResults(result);
+
             } catch (error) {
-                document.getElementById('output-panel').innerHTML = `<div class="test-result failed"><strong>❌ Error:</strong> ${error.message}</div>`;
+                console.error('Execution error:', error);
+                document.getElementById('output-panel').innerHTML = `
+            <div class="test-result failed">
+                <strong>❌ Execution Error:</strong>
+                <br>${error.message}
+                <br><br>
+                <small>Please check your code syntax and try again. Make sure your solution matches the expected function/class signature.</small>
+            </div>
+        `;
             } finally {
                 runBtn.disabled = false;
                 runBtn.innerHTML = '▶ Run Tests';
@@ -727,8 +891,8 @@
 
         function displayTestResults(result) {
             const summary = result.summary;
-            let summaryClass = summary.passed === summary.total ? 'all-passed' : 
-                              summary.passed === 0 ? 'all-failed' : 'some-failed';
+            let summaryClass = summary.passed === summary.total ? 'all-passed' :
+                summary.passed === 0 ? 'all-failed' : 'some-failed';
 
             let html = `
                 <div class="test-results-summary">
@@ -812,12 +976,12 @@
             const btn = document.getElementById('submit-test-btn');
             btn.disabled = true;
             btn.textContent = '⏳ Submitting...';
-            
+
             // Stop proctoring
             isTestActive = false;
             clearInterval(timerInterval);
             clearInterval(aiInterval);
-            
+
             if (videoStream) {
                 videoStream.getTracks().forEach(track => track.stop());
             }
@@ -885,16 +1049,16 @@
             isTestActive = true;
             startTimer();
             loadQuestion(0);
-            
+
             // Start AI proctoring
             if (videoStream) {
                 startProctoring();
             }
-            
+
             // Setup tab detection
             setupTabDetection();
         }
-        
+
         function startProctoring() {
             const canvas = document.getElementById('ai-canvas');
             const ctx = canvas.getContext('2d');
@@ -903,24 +1067,111 @@
             canvas.width = 320;
             canvas.height = 240;
 
+            let frameCount = 0;
+            let lastBrightness = 100;
+
+            console.log('🎥 AI Proctoring Started');
+
             aiInterval = setInterval(() => {
-                if (!isTestActive) return;
+                if (!isTestActive || !videoStream) {
+                    console.log('⚠️ Proctoring inactive or no video stream');
+                    return;
+                }
 
                 try {
+                    frameCount++;
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     const frame = canvas.toDataURL('image/jpeg', 0.5);
 
-                    if (socket) {
-                        socket.emit('video-frame', { sessionId, frame });
+                    // Send video frame to admin every 3 seconds
+                    if (frameCount % 10 === 0 && socket) {
+                        socket.emit('video-frame', {
+                            sessionId,
+                            frame,
+                            timestamp: new Date().toISOString()
+                        });
+                        console.log('📹 Frame sent to admin');
                     }
 
-                    // Simple AI analysis
-                    analyzeFrame(frame);
+                    // AI Analysis every 10 frames (~3 seconds)
+                    if (frameCount % 10 === 0) {
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imageData.data;
+
+                        // Calculate average brightness
+                        let totalBrightness = 0;
+                        for (let i = 0; i < data.length; i += 4) {
+                            totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+                        }
+                        const avgBrightness = totalBrightness / (data.length / 4);
+
+                        // Detect looking away (sudden darkness)
+                        if (avgBrightness < 40 && lastBrightness > 80) {
+                            if (socket) {
+                                socket.emit('proctoring-alert', {
+                                    sessionId,
+                                    alert: {
+                                        type: 'looking_away',
+                                        severity: 'medium',
+                                        message: '👁️ Looking away detected',
+                                        timestamp: new Date().toISOString(),
+                                        brightness: Math.round(avgBrightness)
+                                    }
+                                });
+                                console.log('⚠️ Alert: Looking away');
+                            }
+                        }
+
+                        // Detect bright object (possible phone)
+                        if (avgBrightness > 220) {
+                            if (socket) {
+                                socket.emit('proctoring-alert', {
+                                    sessionId,
+                                    alert: {
+                                        type: 'bright_object',
+                                        severity: 'low',
+                                        message: '📱 Bright object detected',
+                                        timestamp: new Date().toISOString(),
+                                        brightness: Math.round(avgBrightness)
+                                    }
+                                });
+                                console.log('⚠️ Alert: Bright object');
+                            }
+                        }
+
+                        // Detect motion
+                        if (window.lastFrameData) {
+                            let motionScore = 0;
+                            for (let i = 0; i < data.length; i += 40) {
+                                motionScore += Math.abs(data[i] - window.lastFrameData[i]);
+                            }
+
+                            if (motionScore > 500000) {
+                                if (socket) {
+                                    socket.emit('proctoring-alert', {
+                                        sessionId,
+                                        alert: {
+                                            type: 'excessive_motion',
+                                            severity: 'medium',
+                                            message: '🏃 Excessive motion detected',
+                                            timestamp: new Date().toISOString(),
+                                            motionScore: Math.round(motionScore)
+                                        }
+                                    });
+                                    console.log('⚠️ Alert: Excessive motion');
+                                }
+                            }
+                        }
+
+                        window.lastFrameData = new Uint8ClampedArray(data);
+                        lastBrightness = avgBrightness;
+                    }
+
                 } catch (e) {
-                    console.log('Proctoring frame capture error:', e);
+                    console.error('❌ Proctoring error:', e);
                 }
 
-            }, 3000); // Every 3 seconds
+            }, 300); // Every 300ms
         }
 
         async function analyzeFrame(frameData) {
@@ -965,7 +1216,7 @@
                     }
                 }
             });
-            
+
             // Disable right-click
             document.addEventListener('contextmenu', (e) => {
                 if (isTestActive) {
@@ -973,7 +1224,7 @@
                     return false;
                 }
             });
-            
+
             // Disable copy-paste
             document.addEventListener('copy', (e) => {
                 if (isTestActive) {
@@ -981,7 +1232,7 @@
                     return false;
                 }
             });
-            
+
             document.addEventListener('paste', (e) => {
                 if (isTestActive) {
                     e.preventDefault();
@@ -1000,7 +1251,7 @@
                 timeRemaining--;
                 const minutes = Math.floor(timeRemaining / 60);
                 const seconds = timeRemaining % 60;
-                document.getElementById('timer').textContent = 
+                document.getElementById('timer').textContent =
                     `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
                 if (timeRemaining <= 0) {
@@ -1016,4 +1267,5 @@
         });
     </script>
 </body>
+
 </html>

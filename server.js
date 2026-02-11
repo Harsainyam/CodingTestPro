@@ -288,7 +288,7 @@ app.get('/api/submissions/:id', requireAdmin, (req, res) => {
   }
 });
 
-// FIXED: Enhanced code execution with proper code separation
+// COMPLETELY FIXED: Multi-language code execution with proper template handling
 app.post('/api/execute', async (req, res) => {
   const { solutionCode, mainTemplate, testCases, language = 'java', questionId } = req.body;
 
@@ -303,7 +303,7 @@ app.post('/api/execute', async (req, res) => {
     // Get hidden test cases
     const sessionId = req.session.testSession || req.body.sessionId;
     const session = activeTests[sessionId];
-    
+
     let hiddenTestCases = [];
     if (session && session.testId && questionId) {
       const test = tests[session.testId];
@@ -314,51 +314,79 @@ app.post('/api/execute', async (req, res) => {
         }
       }
     }
-    
+
     const allTestCases = [...testCases, ...hiddenTestCases];
     const results = [];
-    
-    console.log(`Executing ${allTestCases.length} test cases (${testCases.length} visible, ${hiddenTestCases.length} hidden)`);
-    
+
+    console.log(`\n🔄 Executing ${allTestCases.length} test cases (${testCases.length} visible, ${hiddenTestCases.length} hidden)`);
+    console.log(`📝 Language: ${language}`);
+
     // Language-specific execution
+    // ✅ CRITICAL FIX for Java compilation
+    // REPLACE the Java execution block in /api/execute endpoint
+
     if (language === 'java') {
-      // Java execution
-      let cleanedCode = solutionCode.trim();
-      cleanedCode = cleanedCode.replace(/^import\s+.*?;\s*/gm, '');
-      
-      let hasClassWrapper = cleanedCode.includes('class Solution');
-      if (!hasClassWrapper) {
-        cleanedCode = `class Solution {\n${cleanedCode}\n}`;
-      }
-      
-      // Execute each test case
+      // ===== JAVA EXECUTION - FIXED =====
       for (let i = 0; i < allTestCases.length; i++) {
         const testCase = allTestCases[i];
-        
-        let mainCode = mainTemplate;
-        if (mainTemplate && mainTemplate.includes('{{input}}')) {
-          mainCode = mainTemplate.replace(/\{\{input\}\}/g, testCase.input);
-          mainCode = mainCode.replace(/^import\s+.*?;\s*/gm, '');
-          if (!mainCode.includes('public class Main')) {
-            mainCode = `public class Main {\n${mainCode}\n}`;
-          }
-        } else {
-          mainCode = `public class Main {
-    public static void main(String[] args) {
-        Solution sol = new Solution();
-        System.out.println(sol.letterCombinations("${testCase.input}"));
-    }
-}`;
+
+        // Extract imports from mainTemplate
+        let imports = '';
+        let mainCodeClean = mainTemplate || '';
+
+        const importMatches = mainCodeClean.match(/^import\s+.*?;\s*$/gm);
+        if (importMatches) {
+          imports = importMatches.join('\n') + '\n';
+          mainCodeClean = mainCodeClean.replace(/^import\s+.*?;\s*$/gm, '').trim();
         }
-        
-        const fullCode = `import java.util.*;
 
-${cleanedCode}
+        // Clean solution code
+        let solutionClean = solutionCode.trim();
+        const solutionImports = solutionClean.match(/^import\s+.*?;\s*$/gm);
+        if (solutionImports) {
+          imports += solutionImports.join('\n') + '\n';
+          solutionClean = solutionClean.replace(/^import\s+.*?;\s*$/gm, '').trim();
+        }
 
-${mainCode}`;
-        
+        // ✅ FIX: Ensure Solution class wrapper (NON-PUBLIC!)
+        if (!solutionClean.includes('class Solution')) {
+          solutionClean = `class Solution {\n${solutionClean}\n}`;
+        }
+
+        // ✅ CRITICAL FIX: Make sure Solution class is NOT public
+        // Only ONE class can be public in a Java file, and it must be Main
+        solutionClean = solutionClean.replace(/public\s+class\s+Solution/g, 'class Solution');
+
+        // Replace {{input}} in main template
+        let mainWithInput = mainCodeClean.replace(/\{\{input\}\}/g, testCase.input);
+
+        // Ensure Main class wrapper if needed
+        if (!mainWithInput.includes('public class Main')) {
+          mainWithInput = `public class Main {\n    public static void main(String[] args) {\n        ${mainWithInput}\n    }\n}`;
+        }
+
+        // ✅ CRITICAL FIX: Combine properly - Solution BEFORE Main
+        // Both classes at SAME LEVEL (not nested)
+        const fullCode = `${imports}
+
+${solutionClean}
+
+${mainWithInput}`;
+
+        console.log(`\n📌 Test Case ${i + 1}:`);
+        console.log(`   Input: ${testCase.input}`);
+        console.log(`   Expected: ${testCase.output}`);
+
+        // Log the actual code being executed (for debugging)
+        if (i === 0) {
+          console.log('\n📄 Generated Java Code:');
+          console.log('---START---');
+          console.log(fullCode);
+          console.log('---END---\n');
+        }
+
         const startTime = Date.now();
-        
+
         try {
           const response = await fetch('https://emkc.org/api/v2/piston/execute', {
             method: 'POST',
@@ -369,30 +397,34 @@ ${mainCode}`;
               files: [{ name: 'Main.java', content: fullCode }]
             })
           });
-          
+
           if (!response.ok) throw new Error(`Execution service error: ${response.statusText}`);
-          
+
           const result = await response.json();
           const executionTime = Date.now() - startTime;
-          
+
           if (result.compile && result.compile.stderr) {
+            console.log(`   ❌ Compilation Error`);
+            console.log(result.compile.stderr);
             results.push({
               testCase: i + 1,
               input: testCase.input,
               expectedOutput: testCase.output,
               actualOutput: '',
               passed: false,
-              error: 'Compilation failed: ' + result.compile.stderr,
+              error: 'Compilation Error: ' + result.compile.stderr.substring(0, 300),
               executionTime,
               status: 'compilation_error'
             });
             continue;
           }
-          
+
           const output = (result.run?.stdout || '').trim();
           const stderr = result.run?.stderr || '';
           const passed = compareOutputs(output, testCase.output);
-          
+
+          console.log(`   ${passed ? '✅' : '❌'} Got: ${output}`);
+
           results.push({
             testCase: i + 1,
             input: testCase.input,
@@ -403,116 +435,9 @@ ${mainCode}`;
             executionTime,
             status: passed ? 'passed' : 'failed'
           });
-          
-        } catch (error) {
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: '',
-            passed: false,
-            error: error.message,
-            executionTime: 0,
-            status: 'error'
-          });
-        }
-      }
-    } else if (language === 'python') {
-      // Python execution
-      for (let i = 0; i < allTestCases.length; i++) {
-        const testCase = allTestCases[i];
-        
-        const pythonCode = `${solutionCode}
 
-# Test execution
-result = letterCombinations("${testCase.input}")
-print(result)
-`;
-        
-        const startTime = Date.now();
-        
-        try {
-          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              language: 'python',
-              version: '3.10.0',
-              files: [{ name: 'solution.py', content: pythonCode }]
-            })
-          });
-          
-          const result = await response.json();
-          const executionTime = Date.now() - startTime;
-          const output = (result.run?.stdout || '').trim();
-          const passed = compareOutputs(output, testCase.output);
-          
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: output,
-            passed,
-            error: result.run?.stderr || null,
-            executionTime,
-            status: passed ? 'passed' : 'failed'
-          });
-          
         } catch (error) {
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: '',
-            passed: false,
-            error: error.message,
-            executionTime: 0,
-            status: 'error'
-          });
-        }
-      }
-    } else if (language === 'javascript') {
-      // JavaScript execution
-      for (let i = 0; i < allTestCases.length; i++) {
-        const testCase = allTestCases[i];
-        
-        const jsCode = `${solutionCode}
-
-// Test execution
-const result = letterCombinations("${testCase.input}");
-console.log(JSON.stringify(result));
-`;
-        
-        const startTime = Date.now();
-        
-        try {
-          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              language: 'javascript',
-              version: '18.15.0',
-              files: [{ name: 'solution.js', content: jsCode }]
-            })
-          });
-          
-          const result = await response.json();
-          const executionTime = Date.now() - startTime;
-          const output = (result.run?.stdout || '').trim();
-          const passed = compareOutputs(output, testCase.output);
-          
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: output,
-            passed,
-            error: result.run?.stderr || null,
-            executionTime,
-            status: passed ? 'passed' : 'failed'
-          });
-          
-        } catch (error) {
+          console.log(`   ❌ Error: ${error.message}`);
           results.push({
             testCase: i + 1,
             input: testCase.input,
@@ -526,17 +451,146 @@ console.log(JSON.stringify(result));
         }
       }
     }
-    
+    else if (language === 'python') {
+      // ===== PYTHON EXECUTION =====
+      for (let i = 0; i < allTestCases.length; i++) {
+        const testCase = allTestCases[i];
+
+        // Replace {{input}} in main template
+        let mainCode = mainTemplate || `result = solution({{input}})
+print(result)`;
+        mainCode = mainCode.replace(/\{\{input\}\}/g, testCase.input);
+
+        const pythonCode = `${solutionCode}\n\n${mainCode}`;
+
+        console.log(`\n📌 Test Case ${i + 1}:`);
+        console.log(`   Input: ${testCase.input}`);
+
+        const startTime = Date.now();
+
+        try {
+          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              language: 'python',
+              version: '3.10.0',
+              files: [{ name: 'solution.py', content: pythonCode }]
+            })
+          });
+
+          const result = await response.json();
+          const executionTime = Date.now() - startTime;
+          const output = (result.run?.stdout || '').trim();
+          const stderr = result.run?.stderr || '';
+          const passed = compareOutputs(output, testCase.output);
+
+          console.log(`   ${passed ? '✅' : '❌'} Got: ${output}`);
+
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: output,
+            passed,
+            error: stderr || null,
+            executionTime,
+            status: passed ? 'passed' : 'failed'
+          });
+
+        } catch (error) {
+          console.log(`   ❌ Error: ${error.message}`);
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: '',
+            passed: false,
+            error: error.message,
+            executionTime: 0,
+            status: 'error'
+          });
+        }
+      }
+
+    } else if (language === 'javascript') {
+      // ===== JAVASCRIPT EXECUTION =====
+      for (let i = 0; i < allTestCases.length; i++) {
+        const testCase = allTestCases[i];
+
+        // Replace {{input}} in main template
+        let mainCode = mainTemplate || `const result = solution({{input}});
+console.log(JSON.stringify(result));`;
+        mainCode = mainCode.replace(/\{\{input\}\}/g, testCase.input);
+
+        const jsCode = `${solutionCode}\n\n${mainCode}`;
+
+        console.log(`\n📌 Test Case ${i + 1}:`);
+        console.log(`   Input: ${testCase.input}`);
+
+        const startTime = Date.now();
+
+        try {
+          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              language: 'javascript',
+              version: '18.15.0',
+              files: [{ name: 'solution.js', content: jsCode }]
+            })
+          });
+
+          const result = await response.json();
+          const executionTime = Date.now() - startTime;
+          const output = (result.run?.stdout || '').trim();
+          const stderr = result.run?.stderr || '';
+          const passed = compareOutputs(output, testCase.output);
+
+          console.log(`   ${passed ? '✅' : '❌'} Got: ${output}`);
+
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: output,
+            passed,
+            error: stderr || null,
+            executionTime,
+            status: passed ? 'passed' : 'failed'
+          });
+
+        } catch (error) {
+          console.log(`   ❌ Error: ${error.message}`);
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: '',
+            passed: false,
+            error: error.message,
+            executionTime: 0,
+            status: 'error'
+          });
+        }
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported language: ${language}`
+      });
+    }
+
     // Separate visible and hidden results
     const visibleResults = results.slice(0, testCases.length);
     const hiddenResults = results.slice(testCases.length);
-    
+
     const visiblePassed = visibleResults.filter(r => r.passed).length;
     const hiddenPassed = hiddenResults.filter(r => r.passed).length;
     const totalPassed = visiblePassed + hiddenPassed;
-    
-    console.log(`Results: ${totalPassed}/${results.length} passed (${visiblePassed} visible, ${hiddenPassed} hidden)`);
-    
+
+    console.log(`\n✅ Results: ${totalPassed}/${results.length} passed (${visiblePassed}/${testCases.length} visible, ${hiddenPassed}/${hiddenTestCases.length} hidden)\n`);
+
     res.json({
       success: true,
       visibleResults,
@@ -551,9 +605,9 @@ console.log(JSON.stringify(result));
         hiddenPassed
       }
     });
-    
+
   } catch (error) {
-    console.error('Code execution error:', error);
+    console.error('❌ Code execution error:', error);
     res.status(500).json({
       success: false,
       error: 'Code execution failed',
@@ -602,6 +656,18 @@ io.on('connection', (socket) => {
   });
 
   socket.on('video-frame', (data) => {
+    // Store frame in proctoring data
+    if (proctoringData[data.sessionId]) {
+      proctoringData[data.sessionId].frames.push({
+        frame: data.frame,
+        timestamp: new Date().toISOString()
+      });
+      // Keep only last 50 frames to save memory
+      if (proctoringData[data.sessionId].frames.length > 50) {
+        proctoringData[data.sessionId].frames.shift();
+      }
+    }
+
     io.to('admin-room').emit('student-video-frame', {
       sessionId: data.sessionId,
       frame: data.frame,
@@ -629,6 +695,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('proctoring-alert', (data) => {
+    const sessionId = data.sessionId;
+
+    // Store alert
+    if (activeTests[sessionId]) {
+      activeTests[sessionId].violations.push(data.alert);
+
+      if (data.alert.type === 'tab_switch') {
+        activeTests[sessionId].tabSwitches = (activeTests[sessionId].tabSwitches || 0) + 1;
+      }
+    }
+
+    if (proctoringData[sessionId]) {
+      proctoringData[sessionId].alerts.push(data.alert);
+    }
+
     io.to('admin-room').emit('proctoring-alert', {
       sessionId: data.sessionId,
       alert: data.alert,
@@ -678,7 +759,7 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║        🚀 Coding Test Platform Server (FIXED)              ║
+║        🚀 Coding Test Platform Server (ALL FIXED!)         ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -686,11 +767,12 @@ server.listen(PORT, () => {
 🌐 Admin Panel: http://localhost:${PORT}/admin.html
 🔐 Default Credentials: admin / admin123
 
-✅ FIXES:
-   ✅ Proper Java code combination (Solution + Main)
-   ✅ Separated visible and hidden test cases
-   ✅ Clean import handling
-   ✅ Better error messages
+✅ ALL FIXES APPLIED:
+   ✅ AI Proctoring - Now stores and emits properly
+   ✅ Main Function Visibility - Locked view implemented
+   ✅ Multi-language Support - Python & JavaScript working
+   ✅ Code Execution - Proper template injection
+   ✅ Test Case Input/Output - {{input}} placeholder working
 
 🎯 Ready to accept test sessions!
   `);
