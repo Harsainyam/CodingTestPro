@@ -80,10 +80,12 @@
             padding: 10px;
             border-radius: 15px;
             box-shadow: var(--card-shadow);
+            flex-wrap: wrap;
         }
 
         .tab {
             flex: 1;
+            min-width: 150px;
             padding: 15px 30px;
             border: none;
             background: transparent;
@@ -201,8 +203,13 @@
             gap: 8px;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-primary {
@@ -211,7 +218,7 @@
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
 
@@ -275,13 +282,10 @@
 
         .test-case {
             background: white;
-            padding: 12px;
-            margin: 8px 0;
-            border-radius: 8px;
+            padding: 20px;
+            margin: 12px 0;
+            border-radius: 12px;
             border: 2px solid #e0e0e0;
-            display: flex;
-            gap: 10px;
-            align-items: center;
         }
 
         .test-list {
@@ -424,83 +428,6 @@
             font-size: 1em;
         }
 
-        /* Scanner Converter Styles */
-        .converter-section {
-            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-            border-radius: 15px;
-            padding: 25px;
-            margin: 20px 0;
-            border: 2px dashed #667eea;
-        }
-
-        .converter-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .converter-header h3 {
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .toggle-converter {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-
-        .converter-content {
-            display: none;
-        }
-
-        .converter-content.active {
-            display: block;
-        }
-
-        .converter-grid {
-            display: grid;
-            grid-template-columns: 1fr 50px 1fr;
-            gap: 15px;
-            align-items: start;
-        }
-
-        .converter-arrow {
-            text-align: center;
-            font-size: 2em;
-            color: #667eea;
-            padding-top: 40px;
-        }
-
-        .converter-example {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 4px solid #2ed573;
-        }
-
-        .converter-example h4 {
-            color: #2ed573;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-        }
-
-        .converter-example pre {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            overflow-x: auto;
-        }
-
         .info-badge {
             display: inline-block;
             padding: 4px 10px;
@@ -522,6 +449,11 @@
         .badge-orange {
             background: #ffa50220;
             color: #ffa502;
+        }
+
+        .badge-red {
+            background: #ff475720;
+            color: #ff4757;
         }
 
         .submissions-list {
@@ -586,15 +518,6 @@
             font-size: 2em;
         }
 
-        .template-hint {
-            background: #fff8f0;
-            border-left: 4px solid #ffa502;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-            font-size: 0.9em;
-        }
-
         .success-message {
             background: #d4edda;
             border: 1px solid #c3e6cb;
@@ -609,6 +532,130 @@
             display: block;
             animation: fadeIn 0.3s;
         }
+
+        /* Student Management Styles */
+        .students-list {
+            display: grid;
+            gap: 20px;
+        }
+
+        .student-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            border-left: 5px solid #2ed573;
+            transition: all 0.3s;
+        }
+
+        .student-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(46, 213, 115, 0.2);
+        }
+
+        .student-card h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .student-detail {
+            margin: 8px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .credentials-box {
+            background: #fff8f0;
+            border: 2px dashed #ffa502;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .credentials-box h4 {
+            color: #ffa502;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .credential-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #ffe0b2;
+        }
+
+        .credential-item:last-child {
+            border-bottom: none;
+        }
+
+        .credential-value {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .students-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .students-table th,
+        .students-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .students-table th {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            font-weight: 600;
+            color: #333;
+        }
+
+        .students-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-completed {
+            color: #2ed573;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            color: #ffa502;
+            font-weight: 600;
+        }
+
+        /* ✅ NEW: Simple input hint box */
+        .input-hint-box {
+            background: #e8f4fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .input-hint-box h4 {
+            color: #1976D2;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
     </style>
 </head>
 
@@ -619,11 +666,11 @@
             <h2>🔐 Admin Login</h2>
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="login-username" placeholder="admin">
+                <input type="text" id="login-username">
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="login-password" placeholder="admin123">
+                <input type="password" id="login-password">
             </div>
             <button class="btn btn-primary" style="width: 100%;" onclick="login()">
                 🚀 Login to Dashboard
@@ -648,6 +695,9 @@
                 </button>
                 <button class="tab" onclick="switchTab('manage-tests')">
                     📋 Manage Tests
+                </button>
+                <button class="tab" onclick="switchTab('students')">
+                    👥 Students
                 </button>
                 <button class="tab" onclick="switchTab('submissions')">
                     📊 Submissions
@@ -683,53 +733,26 @@
                                 placeholder="Read all questions carefully. You can run test cases before submitting. Proctoring is active."></textarea>
                         </div>
 
-                        <!-- Scanner to Piston Converter -->
-                        <div class="converter-section">
-                            <div class="converter-header">
-                                <h3>🔧 Smart Code Converter</h3>
-                                <button type="button" class="toggle-converter" onclick="toggleConverter()">
-                                    Show Converter
-                                </button>
-                            </div>
-                            <div class="converter-content" id="converter-content">
-                                <p style="color: #666; margin-bottom: 15px;">
-                                    Paste your Scanner-based main code, and we'll convert it to Piston-compatible
-                                    format!
-                                </p>
-                                <div class="converter-grid">
-                                    <div>
-                                        <label>Your Scanner Code:</label>
-                                        <textarea id="scanner-input" rows="10" placeholder="Scanner sc = new Scanner(System.in);
-int a = sc.nextInt();
-int b = sc.nextInt();
-Solution sol = new Solution();
-int result = sol.add(a, b);
-System.out.println(result);"></textarea>
-                                    </div>
-                                    <div class="converter-arrow">→</div>
-                                    <div>
-                                        <label>Piston-Compatible Code:</label>
-                                        <textarea id="piston-output" rows="10" readonly
-                                            style="background: #f8f9fa;"></textarea>
-                                        <button type="button" class="btn btn-success btn-sm" onclick="copyConverted()"
-                                            style="width: 100%; margin-top: 10px;">
-                                            📋 Copy Converted Code
-                                        </button>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-primary" onclick="convertCode()"
-                                    style="margin-top: 15px;">
-                                    ✨ Convert Code
-                                </button>
+                        <!-- ✅ NEW: Simple explanation box -->
+                        <div class="input-hint-box">
+                            <h4>💡 How Test Inputs Work (NEW - Multi-line Scanner Support!)</h4>
+                            <p><strong>Main Template:</strong> Write normal Scanner code as you always do</p>
+                            <p><strong>Test Inputs:</strong> Each line = one Scanner read operation!</p>
+                            <p style="margin-top: 10px;"><strong>Example:</strong></p>
+                            <pre style="background: white; padding: 10px; border-radius: 5px; margin-top: 5px;">Main Template:
+Scanner sc = new Scanner(System.in);
+int n = sc.nextInt();
+int[] arr = new int[n];
+for (int i = 0; i < n; i++) {
+    arr[i] = sc.nextInt();
+}
+int x = sc.nextInt();
 
-                                <div class="converter-example">
-                                    <h4>💡 Quick Examples:</h4>
-                                    <pre>Single int:    {{input}} → Test Input: 5
-Two ints:      {{input}} → Test Input: 2, 3
-String:        {{input}} → Test Input: "hello"
-Array:         {{input}} → Test Input: new int[]{1,2,3}</pre>
-                                </div>
-                            </div>
+Test Input (multi-line):
+<strong style="color: #2196F3;">5</strong>           ← First line: n = 5
+<strong style="color: #2196F3;">3 5 3 9 7</strong>   ← Second line: array elements
+<strong style="color: #2196F3;">9</strong>           ← Third line: x = 9</pre>
+                            <p style="margin-top: 10px; color: #1976D2;"><strong>✅ Now you can press Enter to go to next line!</strong></p>
                         </div>
 
                         <h3 style="margin: 30px 0 20px 0;">📚 Questions</h3>
@@ -752,6 +775,72 @@ Array:         {{input}} → Test Input: new int[]{1,2,3}</pre>
                 <div class="card">
                     <h2>📋 All Tests</h2>
                     <div id="tests-list" class="test-list"></div>
+                </div>
+            </div>
+
+            <!-- Students Tab -->
+            <div id="students" class="tab-content">
+                <div class="card">
+                    <h2>👥 Student Management</h2>
+                    
+                    <div id="student-success-message" class="success-message">
+                        ✅ Student account created successfully!
+                    </div>
+
+                    <!-- Create Student Form -->
+                    <div style="background: linear-gradient(135deg, #2ed57315 0%, #2ed57310 100%); padding: 25px; border-radius: 15px; margin-bottom: 30px; border: 2px dashed #2ed573;">
+                        <h3 style="margin-bottom: 20px; color: #2ed573;">➕ Create New Student Account</h3>
+                        <form id="create-student-form">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="form-group">
+                                    <label>👤 Student Name</label>
+                                    <input type="text" id="student-name" placeholder="John Doe" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>📧 Email Address</label>
+                                    <input type="email" id="student-email" placeholder="john@example.com" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>🔑 Password</label>
+                                    <input type="text" id="student-password" placeholder="john123" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>📝 Assign Test</label>
+                                    <select id="student-test" required>
+                                        <option value="">Select a test...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success" style="margin-top: 15px;">
+                                ➕ Create Student Account
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Students List -->
+                    <h3 style="margin: 30px 0 20px 0;">📋 All Students</h3>
+                    <div class="table-wrapper">
+                        <table class="students-table" id="students-table">
+                            <thead>
+                                <tr>
+                                    <th>👤 Name</th>
+                                    <th>📧 Email</th>
+                                    <th>🔑 Password</th>
+                                    <th>📝 Test</th>
+                                    <th>✅ Status</th>
+                                    <th>📅 Created</th>
+                                    <th>⚙️ Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: #999; padding: 40px;">
+                                        No students yet. Create your first student account! 🚀
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -811,6 +900,30 @@ Array:         {{input}} → Test Input: new int[]{1,2,3}</pre>
     <script>
         let questionCount = 0;
         let currentEditingTestId = null;
+        let allTests = [];
+
+        // ============================================================================
+        // TIMEZONE FIX - Convert UTC to IST
+        // ============================================================================
+        function formatTimestamp(isoString) {
+            if (!isoString) return 'N/A';
+
+            const date = new Date(isoString);
+
+            // Format for IST (India Standard Time)
+            const options = {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZone: 'Asia/Kolkata'  // ✅ Force IST timezone
+            };
+
+            return date.toLocaleString('en-IN', options) + ' IST';
+        }
 
         // Check authentication
         async function checkAuth() {
@@ -822,6 +935,7 @@ Array:         {{input}} → Test Input: new int[]{1,2,3}</pre>
                 document.getElementById('admin-screen').classList.remove('hidden');
                 loadTests();
                 loadSubmissions();
+                loadStudents();
             }
         }
 
@@ -840,6 +954,7 @@ Array:         {{input}} → Test Input: new int[]{1,2,3}</pre>
                 document.getElementById('admin-screen').classList.remove('hidden');
                 loadTests();
                 loadSubmissions();
+                loadStudents();
             } else {
                 alert('❌ Invalid credentials');
             }
@@ -859,85 +974,10 @@ Array:         {{input}} → Test Input: new int[]{1,2,3}</pre>
 
             if (tabName === 'manage-tests') loadTests();
             if (tabName === 'submissions') loadSubmissions();
+            if (tabName === 'students') loadStudents();
         }
 
-        // Scanner to Piston Converter
-        function toggleConverter() {
-            const content = document.getElementById('converter-content');
-            const btn = event.target;
-
-            if (content.classList.contains('active')) {
-                content.classList.remove('active');
-                btn.textContent = 'Show Converter';
-            } else {
-                content.classList.add('active');
-                btn.textContent = 'Hide Converter';
-            }
-        }
-
-        function convertCode() {
-            const input = document.getElementById('scanner-input').value.trim();
-            if (!input) {
-                alert('⚠️ Please paste your Scanner code first!');
-                return;
-            }
-
-            let converted = input;
-            let testInputHint = '';
-
-            // Detect common patterns and convert
-
-            // Single int
-            if (input.includes('int a = sc.nextInt()') && !input.includes('int b')) {
-                converted = converted.replace(/Scanner sc = new Scanner\(System\.in\);\s*/g, '');
-                converted = converted.replace(/int a = sc\.nextInt\(\);\s*/g, '');
-                converted = converted.replace(/\ba\b/g, '{{input}}');
-                testInputHint = '📝 Test Input Example: 5';
-            }
-            // Two ints
-            else if (input.includes('int a = sc.nextInt()') && input.includes('int b = sc.nextInt()')) {
-                converted = converted.replace(/Scanner sc = new Scanner\(System\.in\);\s*/g, '');
-                converted = converted.replace(/int a = sc\.nextInt\(\);\s*/g, '');
-                converted = converted.replace(/int b = sc\.nextInt\(\);\s*/g, '');
-
-                // Find method call with a, b
-                const methodMatch = converted.match(/sol\.(\w+)\(a,\s*b\)/);
-                if (methodMatch) {
-                    converted = converted.replace(/sol\.\w+\(a,\s*b\)/, `sol.${methodMatch[1]}({{input}})`);
-                }
-                testInputHint = '📝 Test Input Example: 2, 3';
-            }
-            // Single String
-            else if (input.includes('String input = sc.nextLine()') || input.includes('String s = sc.nextLine()')) {
-                converted = converted.replace(/Scanner sc = new Scanner\(System\.in\);\s*/g, '');
-                converted = converted.replace(/String (input|s) = sc\.nextLine\(\);\s*/g, '');
-                converted = converted.replace(/\b(input|s)\b/g, '{{input}}');
-                testInputHint = '📝 Test Input Example: "hello"';
-            }
-            // Generic conversion
-            else {
-                converted = converted.replace(/Scanner sc = new Scanner\(System\.in\);\s*/g, '');
-                converted = converted.replace(/int \w+ = sc\.nextInt\(\);\s*/g, '');
-                converted = converted.replace(/String \w+ = sc\.nextLine\(\);\s*/g, '');
-                converted = converted.replace(/double \w+ = sc\.nextDouble\(\);\s*/g, '');
-                testInputHint = '⚠️ Manual review needed - check the {{input}} placeholders!';
-            }
-
-            // Clean up extra whitespace
-            converted = converted.replace(/\n\s*\n\s*\n/g, '\n\n');
-
-            document.getElementById('piston-output').value = converted.trim();
-
-            alert(`✅ Code converted!\n\n${testInputHint}\n\nReview the output and adjust if needed.`);
-        }
-
-        function copyConverted() {
-            const output = document.getElementById('piston-output');
-            output.select();
-            document.execCommand('copy');
-            alert('📋 Converted code copied to clipboard!');
-        }
-
+        // ✅ SIMPLIFIED: addQuestion function with plain text input hints
         function addQuestion() {
             questionCount++;
             const container = document.getElementById('questions-container');
@@ -947,29 +987,31 @@ Array:         {{input}} → Test Input: new int[]{1,2,3}</pre>
                 <h4>📝 Question ${questionCount}</h4>
                 <div class="form-group">
                     <label>Title</label>
-                    <input type="text" class="question-title" placeholder="Two Sum" required>
+                    <input type="text" class="question-title" placeholder="Factorial Calculator" required>
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea class="question-description" rows="4" placeholder="Given an array of integers and a target, return indices of two numbers that add up to the target." required></textarea>
+                    <textarea class="question-description" rows="4" placeholder="Write a function to calculate factorial of a number." required></textarea>
                 </div>
                 <div class="form-group">
                     <label>Student Code Template <span class="label-hint">(They edit this)</span></label>
-                    <textarea class="question-template" rows="8" placeholder="public int add(int a, int b) {
-    // Write your code here
-    return 0;
+                    <textarea class="question-template" rows="8" placeholder="public class Solution {
+    public int factorial(int n) {
+        // Write your code here
+        return 0;
+    }
 }" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Main Function Template <span class="info-badge badge-orange">🔒 LOCKED - Students can't edit</span></label>
-                    <textarea class="question-main-template" rows="12" placeholder="Solution sol = new Solution();
-int result = sol.add({{input}});
+                    <label>Main Function Template <span class="info-badge badge-orange">Your Scanner code</span></label>
+                    <textarea class="question-main-template" rows="10" placeholder="Scanner sc = new Scanner(System.in);
+int n = sc.nextInt();
+Solution sol = new Solution();
+int result = sol.factorial(n);
 System.out.println(result);" required></textarea>
-                    <div class="template-hint">
-                        <strong>💡 Use {{input}} placeholder:</strong><br>
-                        • Test input <code>2, 3</code> → becomes <code>sol.add(2, 3)</code><br>
-                        • Test input <code>"hello"</code> → becomes <code>sol.method("hello")</code><br>
-                        • Use the converter above if you have Scanner code! ⬆️
+                    <div class="input-hint-box" style="margin-top: 10px;">
+                        <h4>💡 Write normal Scanner code - we send inputs via stdin!</h4>
+                        <p>Just write your Scanner code as you normally would. The system automatically sends test inputs to Scanner.</p>
                     </div>
                 </div>
                 <div class="form-group">
@@ -987,15 +1029,30 @@ System.out.println(result);" required></textarea>
             container.appendChild(questionDiv);
         }
 
+        // ✅ UPDATED: addTestCase with TEXTAREA for multi-line input
         function addTestCase(button, type) {
             const container = button.previousElementSibling;
             const testCaseDiv = document.createElement('div');
             testCaseDiv.className = 'test-case';
             testCaseDiv.innerHTML = `
-                <input type="text" placeholder='Input: 2, 3 or "hello"' class="test-input" style="flex: 1;">
-                <span style="color: #999;">→</span>
-                <input type="text" placeholder='Output: 5' class="test-output" style="flex: 1;">
-                <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">×</button>
+                <div style="display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 15px; align-items: start;">
+                    <div>
+                        <small style="color: #666; display: block; margin-bottom: 5px;"><strong>📥 Input</strong> (multi-line - press Enter for new line):</small>
+                        <textarea class="test-input" placeholder="5
+3 5 3 9 7
+9" rows="4" style="width: 100%; resize: vertical; font-family: 'Courier New', monospace; font-size: 0.95em;"></textarea>
+                        <small style="color: #999; font-size: 0.85em;">💡 Each line = one Scanner read</small>
+                    </div>
+                    <div style="text-align: center; color: #999; padding-top: 30px; font-size: 1.5em;">→</div>
+                    <div>
+                        <small style="color: #666; display: block; margin-bottom: 5px;"><strong>📤 Expected Output:</strong></small>
+                        <textarea class="test-output" placeholder="1" rows="4" style="width: 100%; resize: vertical; font-family: 'Courier New', monospace; font-size: 0.95em;"></textarea>
+                        <small style="color: #999; font-size: 0.85em;">Expected result from code</small>
+                    </div>
+                    <div style="padding-top: 30px;">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.test-case').remove()">🗑️</button>
+                    </div>
+                </div>
             `;
             container.appendChild(testCaseDiv);
         }
@@ -1069,6 +1126,9 @@ System.out.println(result);" required></textarea>
                 document.getElementById('questions-container').innerHTML = '';
                 questionCount = 0;
 
+                // Reload tests for student dropdown
+                await loadTests();
+
                 // Show the test link
                 alert(`✅ Test created successfully!\n\n📋 Test Link:\n${result.test.link}\n\nCopy this link and share with students!`);
 
@@ -1085,13 +1145,24 @@ System.out.println(result);" required></textarea>
 
                 const response = await fetch('/api/tests');
                 const tests = await response.json();
+                allTests = tests;
 
                 console.log('📊 Loaded tests:', tests.length);
 
                 const container = document.getElementById('tests-list');
-
-                // Always clear the container first
                 container.innerHTML = '';
+
+                // Update student test dropdown
+                const studentTestSelect = document.getElementById('student-test');
+                if (studentTestSelect) {
+                    studentTestSelect.innerHTML = '<option value="">Select a test...</option>';
+                    tests.forEach(test => {
+                        const option = document.createElement('option');
+                        option.value = test.testId;
+                        option.textContent = test.title;
+                        studentTestSelect.appendChild(option);
+                    });
+                }
 
                 if (tests.length === 0) {
                     container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No tests created yet. Create your first test! 🚀</p>';
@@ -1101,7 +1172,7 @@ System.out.println(result);" required></textarea>
                 tests.forEach(test => {
                     const testCard = document.createElement('div');
                     testCard.className = 'test-card';
-                    testCard.setAttribute('data-test-id', test.testId); // Add data attribute for easy removal
+                    testCard.setAttribute('data-test-id', test.testId);
                     testCard.innerHTML = `
                 <h3>${test.title}</h3>
                 <p><span class="info-badge badge-blue">⏱️ ${test.duration} min</span></p>
@@ -1187,8 +1258,6 @@ System.out.println(result);" required></textarea>
                 if (response.ok && result.success) {
                     console.log('✅ Test deleted successfully');
                     alert('✅ Test deleted successfully');
-
-                    // Force reload the tests list
                     await loadTests();
                 } else {
                     console.error('❌ Delete failed:', result);
@@ -1205,7 +1274,157 @@ System.out.println(result);" required></textarea>
             alert('📋 Link copied to clipboard!');
         }
 
-        // Replace the loadSubmissions function in admin.html with this enhanced version:
+        // ============================================================================
+        // STUDENT MANAGEMENT FUNCTIONS
+        // ============================================================================
+
+        // Create student form handler
+        document.getElementById('create-student-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const studentData = {
+                name: document.getElementById('student-name').value,
+                email: document.getElementById('student-email').value,
+                password: document.getElementById('student-password').value,
+                testId: document.getElementById('student-test').value
+            };
+
+            if (!studentData.testId) {
+                alert('⚠️ Please select a test for the student!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/students', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(studentData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Show success message
+                    const successMsg = document.getElementById('student-success-message');
+                    successMsg.textContent = `✅ Student account created! Email: ${result.student.email} | Password: ${studentData.password}`;
+                    successMsg.classList.add('active');
+                    setTimeout(() => successMsg.classList.remove('active'), 10000);
+
+                    // Reset form
+                    document.getElementById('create-student-form').reset();
+
+                    // Reload students list
+                    await loadStudents();
+
+                    // Show alert with credentials
+                    alert(`✅ Student Account Created!\n\n👤 Name: ${result.student.name}\n📧 Email: ${result.student.email}\n🔑 Password: ${studentData.password}\n📝 Test: ${result.student.testTitle}\n\n⚠️ IMPORTANT: Share these credentials with the student!`);
+                } else {
+                    alert('❌ Error: ' + (result.error || 'Failed to create student'));
+                }
+            } catch (error) {
+                console.error('❌ Error creating student:', error);
+                alert('❌ Error creating student: ' + error.message);
+            }
+        });
+
+        // Load students list
+        async function loadStudents() {
+            try {
+                console.log('📥 Loading students...');
+
+                const response = await fetch('/api/students');
+                const students = await response.json();
+
+                console.log('📊 Loaded students:', students.length);
+
+                const tbody = document.getElementById('students-table-body');
+                tbody.innerHTML = '';
+
+                if (students.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #999; padding: 40px;">
+                                No students yet. Create your first student account! 🚀
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                students.forEach(student => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${student.name}</strong></td>
+                        <td>${student.email}</td>
+                        <td>
+                            <span class="credential-value" style="cursor: pointer;" 
+                                  onclick="copyToClipboard('${student.email}')" 
+                                  title="Click to copy email">
+                                ••••••••
+                            </span>
+                        </td>
+                        <td>
+                            <span class="info-badge badge-blue">${student.testTitle}</span>
+                        </td>
+                        <td>
+                            ${student.hasCompletedTest 
+                                ? '<span class="status-completed">✅ Completed</span>' 
+                                : '<span class="status-pending">⏳ Pending</span>'
+                            }
+                        </td>
+                        <td style="font-size: 0.9em;">${formatTimestamp(student.createdAt)}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.studentId}', '${student.name}')">
+                                🗑️ Delete
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                console.log('✅ Students rendered');
+            } catch (error) {
+                console.error('❌ Error loading students:', error);
+                const tbody = document.getElementById('students-table-body');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #ff4757; padding: 40px;">
+                            Error loading students. Please refresh the page.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Delete student
+        async function deleteStudent(studentId, studentName) {
+            if (!confirm(`⚠️ Are you sure you want to delete student "${studentName}"?\n\nThis action cannot be undone!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/students/${studentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    alert('✅ Student deleted successfully!');
+                    await loadStudents();
+                } else {
+                    alert('❌ Error deleting student: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('❌ Error deleting student:', error);
+                alert('❌ Error deleting student: ' + error.message);
+            }
+        }
+
+        // ============================================================================
+        // SUBMISSIONS
+        // ============================================================================
 
         async function loadSubmissions() {
             const response = await fetch('/api/submissions');
@@ -1251,7 +1470,7 @@ System.out.println(result);" required></textarea>
                 <span class="info-badge badge-orange">${sub.totalHiddenPassed || 0}</span>
             </div>
             <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
-                📅 Submitted: ${new Date(sub.submittedAt).toLocaleString()}
+                📅 Submitted: ${formatTimestamp(sub.submittedAt)}
             </p>
             <div style="margin-top: 15px;">
                 <a href="/view-submission.html?id=${sub.id}" target="_blank" class="btn btn-primary btn-sm">
@@ -1265,33 +1484,6 @@ System.out.println(result);" required></textarea>
 
         // Initialize
         checkAuth();
-        // Add this helper function to your admin.html <script> section:
-
-        function formatTimestamp(isoString) {
-            if (!isoString) return 'N/A';
-
-            const date = new Date(isoString);
-
-            // Format: Feb 11, 2026, 5:32:47 PM IST
-            const options = {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZoneName: 'short'
-            };
-
-            return date.toLocaleString('en-IN', options);
-        }
-
-        // Usage in your code:
-        // Replace: new Date(test.createdAt).toLocaleString()
-        // With: formatTimestamp(test.createdAt)
-
-        // Example output:
-        // 2026-02-11T12:02:47.932+00:00 → Feb 11, 2026, 5:32:47 PM IST
     </script>
 </body>
 

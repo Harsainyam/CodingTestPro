@@ -8,8 +8,6 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
-// Load environment variables from .env file
-
 
 const app = express();
 const server = http.createServer(app);
@@ -23,7 +21,6 @@ const io = socketIO(server, {
 // ============================================================================
 // MONGODB CONNECTION
 // ============================================================================
-// Replace with your MongoDB Atlas connection string
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/coding-test-platform';
 
 mongoose.connect(MONGODB_URI, {
@@ -34,7 +31,7 @@ mongoose.connect(MONGODB_URI, {
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // ============================================================================
-// MONGODB SCHEMAS - ONLY TEST DATA
+// MONGODB SCHEMAS
 // ============================================================================
 
 // Test Schema
@@ -66,28 +63,36 @@ const testSchema = new mongoose.Schema({
 
 const Test = mongoose.model('Test', testSchema);
 
-// Submission Schema - ONLY ESSENTIAL TEST DATA
+// Student Schema
+const studentSchema = new mongoose.Schema({
+  studentId: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, required: true },
+  name: { type: String, required: true },
+  testId: { type: String, required: true },
+  hasCompletedTest: { type: Boolean, default: false },
+  submissionId: { type: String },
+  createdAt: { type: Date, default: Date.now },
+  createdBy: { type: String, default: 'admin' }
+});
+
+const Student = mongoose.model('Student', studentSchema);
+
+// Submission Schema
 const submissionSchema = new mongoose.Schema({
   submissionId: { type: String, required: true, unique: true },
   testId: { type: String, required: true },
-
-  // Student Info
+  studentId: { type: String },
   candidateName: { type: String, required: true },
   candidateEmail: { type: String, required: true },
-
-  // Test Timing
   startTime: { type: Date, required: true },
   endTime: Date,
   submittedAt: Date,
-
-  // Question Answers
   answers: [{
     questionId: Number,
     code: String,
     language: String,
     submittedAt: Date,
-
-    // Test Results
     visibleTestCasesPassed: { type: Number, default: 0 },
     visibleTestCasesTotal: { type: Number, default: 0 },
     hiddenTestCasesPassed: { type: Number, default: 0 },
@@ -97,15 +102,14 @@ const submissionSchema = new mongoose.Schema({
 
 const Submission = mongoose.model('Submission', submissionSchema);
 
-// Active Session Schema (temporary during test)
+// Active Session Schema
 const activeSessionSchema = new mongoose.Schema({
   sessionId: { type: String, required: true, unique: true },
   testId: { type: String, required: true },
+  studentId: { type: String, required: true },
   candidateName: { type: String, required: true },
   candidateEmail: { type: String, required: true },
   startTime: { type: Date, default: Date.now },
-
-  // Current answers (gets moved to Submission on submit)
   answers: [{
     questionId: Number,
     code: String,
@@ -131,16 +135,7 @@ app.use(session({
   cookie: { secure: false }
 }));
 
-// In-memory storage (only for users and proctoring display - NOT saved to DB)
-const users = {
-  admin: {
-    username: 'Gorin',
-    password: 'Gorin9056#',
-    role: 'admin'
-  }
-};
-
-// Proctoring data - ONLY for live monitoring, NOT saved to database
+// In-memory storage for proctoring
 const proctoringCache = {};
 
 // Authentication middleware
@@ -208,16 +203,63 @@ function compareOutputs(actual, expected) {
 }
 
 // ============================================================================
-// ROUTES
+// AUTHENTICATION ROUTES
 // ============================================================================
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === 'admin' && password === 'admin123') {
+  if (username === 'Gorin' && password === 'Gorin9056#') {
     req.session.user = { username: 'admin', role: 'admin' };
     res.json({ success: true, role: 'admin' });
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
+  }
+});
+
+app.post('/api/student/login', async (req, res) => {
+  try {
+    const { email, password, testId } = req.body;
+
+    if (!email || !password || !testId) {
+      return res.status(400).json({ error: 'Email, password, and test ID are required' });
+    }
+
+    const student = await Student.findOne({
+      email: email.toLowerCase().trim(),
+      password: password,
+      testId: testId
+    });
+
+    if (!student) {
+      return res.status(401).json({ error: 'Invalid credentials or not authorized for this test' });
+    }
+
+    if (student.hasCompletedTest) {
+      return res.status(403).json({
+        error: 'Test already completed',
+        message: 'You have already submitted this test. You cannot take it again.',
+        submissionId: student.submissionId
+      });
+    }
+
+    req.session.student = {
+      studentId: student.studentId,
+      email: student.email,
+      name: student.name,
+      testId: student.testId
+    };
+
+    res.json({
+      success: true,
+      student: {
+        name: student.name,
+        email: student.email,
+        testId: student.testId
+      }
+    });
+  } catch (error) {
+    console.error('❌ Student login error:', error);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
@@ -229,12 +271,111 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/check-auth', (req, res) => {
   if (req.session.user) {
     res.json({ authenticated: true, role: req.session.user.role });
+  } else if (req.session.student) {
+    res.json({ authenticated: true, role: 'student', student: req.session.student });
   } else {
     res.json({ authenticated: false });
   }
 });
 
-// Create Test
+// ============================================================================
+// STUDENT MANAGEMENT ROUTES
+// ============================================================================
+
+app.post('/api/students', requireAdmin, async (req, res) => {
+  try {
+    const { name, email, password, testId } = req.body;
+
+    if (!name || !email || !password || !testId) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const test = await Test.findOne({ testId });
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    const existingStudent = await Student.findOne({
+      email: email.toLowerCase().trim()
+    });
+
+    if (existingStudent) {
+      return res.status(400).json({ error: 'Student with this email already exists' });
+    }
+
+    const studentId = uuidv4();
+    const student = new Student({
+      studentId,
+      name,
+      email: email.toLowerCase().trim(),
+      password,
+      testId
+    });
+
+    await student.save();
+    console.log('✅ Student created:', email, 'for test:', test.title);
+
+    res.json({
+      success: true,
+      student: {
+        studentId: student.studentId,
+        name: student.name,
+        email: student.email,
+        testId: student.testId,
+        testTitle: test.title,
+        createdAt: student.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating student:', error);
+    res.status(500).json({ error: 'Failed to create student' });
+  }
+});
+
+app.get('/api/students', requireAdmin, async (req, res) => {
+  try {
+    const students = await Student.find().sort({ createdAt: -1 });
+    
+    const studentsWithTests = await Promise.all(students.map(async (student) => {
+      const test = await Test.findOne({ testId: student.testId });
+      return {
+        studentId: student.studentId,
+        name: student.name,
+        email: student.email,
+        testId: student.testId,
+        testTitle: test ? test.title : 'Test not found',
+        hasCompletedTest: student.hasCompletedTest,
+        submissionId: student.submissionId,
+        createdAt: student.createdAt
+      };
+    }));
+
+    res.json(studentsWithTests);
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+});
+
+app.delete('/api/students/:studentId', requireAdmin, async (req, res) => {
+  try {
+    const result = await Student.deleteOne({ studentId: req.params.studentId });
+    
+    if (result.deletedCount === 1) {
+      res.json({ success: true, message: 'Student deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Student not found' });
+    }
+  } catch (error) {
+    console.error('❌ Error deleting student:', error);
+    res.status(500).json({ error: 'Failed to delete student' });
+  }
+});
+
+// ============================================================================
+// TEST ROUTES
+// ============================================================================
+
 app.post('/api/tests', requireAdmin, async (req, res) => {
   try {
     const testId = uuidv4();
@@ -260,7 +401,6 @@ app.post('/api/tests', requireAdmin, async (req, res) => {
   }
 });
 
-// Get all tests
 app.get('/api/tests', requireAdmin, async (req, res) => {
   try {
     const tests = await Test.find().sort({ createdAt: -1 });
@@ -271,9 +411,12 @@ app.get('/api/tests', requireAdmin, async (req, res) => {
   }
 });
 
-// Get single test
 app.get('/api/tests/:id', async (req, res) => {
   try {
+    if (!req.session.student || req.session.student.testId !== req.params.id) {
+      return res.status(403).json({ error: 'Not authorized to access this test' });
+    }
+
     const test = await Test.findOne({ testId: req.params.id });
     if (test) {
       res.json(test);
@@ -286,7 +429,6 @@ app.get('/api/tests/:id', async (req, res) => {
   }
 });
 
-// Update test
 app.patch('/api/tests/:id', requireAdmin, async (req, res) => {
   try {
     const test = await Test.findOne({ testId: req.params.id });
@@ -306,35 +448,14 @@ app.patch('/api/tests/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Delete test
-// Replace this in your server.js
-
-// Delete test - FIXED VERSION
 app.delete('/api/tests/:id', requireAdmin, async (req, res) => {
   try {
     const testId = req.params.id;
-    console.log('🗑️ Attempting to delete test:', testId);
-
-    // Find the test first to verify it exists
-    const test = await Test.findOne({ testId: testId });
-
-    if (!test) {
-      console.log('❌ Test not found:', testId);
-      return res.status(404).json({ error: 'Test not found' });
-    }
-
-    console.log('✅ Test found, deleting:', test.title);
-
-    // Delete the test
     const result = await Test.deleteOne({ testId: testId });
 
-    console.log('🗑️ Delete result:', result);
-
     if (result.deletedCount === 1) {
-      console.log('✅ Test successfully deleted from database');
       res.json({ success: true, message: 'Test deleted successfully' });
     } else {
-      console.log('⚠️ Delete operation completed but no document was deleted');
       res.status(500).json({ error: 'Failed to delete test' });
     }
   } catch (error) {
@@ -347,32 +468,45 @@ app.delete('/api/tests/:id', requireAdmin, async (req, res) => {
 // TEST SESSION ROUTES
 // ============================================================================
 
-// Start test session
 app.post('/api/test-session/start', async (req, res) => {
   try {
-    const { testId, candidateName, candidateEmail } = req.body;
-    const test = await Test.findOne({ testId });
+    const { testId } = req.body;
+    
+    if (!req.session.student || req.session.student.testId !== testId) {
+      return res.status(403).json({ error: 'Not authorized to take this test. Please login first.' });
+    }
 
+    const test = await Test.findOne({ testId });
     if (!test) {
       return res.status(404).json({ error: 'Test not found' });
     }
 
-    if (!candidateName || !candidateEmail) {
-      return res.status(400).json({ error: 'Name and email are required' });
+    const student = await Student.findOne({ studentId: req.session.student.studentId });
+    
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    if (student.hasCompletedTest) {
+      return res.status(403).json({
+        error: 'Test already completed',
+        message: 'You have already submitted this test.',
+        submissionId: student.submissionId
+      });
     }
 
     const sessionId = uuidv4();
     const activeSession = new ActiveSession({
       sessionId,
       testId,
-      candidateName,
-      candidateEmail
+      studentId: student.studentId,
+      candidateName: student.name,
+      candidateEmail: student.email
     });
 
     await activeSession.save();
-    console.log('✅ Session started:', sessionId, '-', candidateName);
+    console.log('✅ Session started:', sessionId, '-', student.name);
 
-    // Initialize proctoring cache (for live monitoring only)
     proctoringCache[sessionId] = {
       frames: [],
       alerts: []
@@ -386,7 +520,6 @@ app.post('/api/test-session/start', async (req, res) => {
   }
 });
 
-// Save question answer
 app.post('/api/test-session/save-answer', async (req, res) => {
   try {
     const sessionId = req.session.testSession || req.body.sessionId;
@@ -406,7 +539,6 @@ app.post('/api/test-session/save-answer', async (req, res) => {
       submittedAt: new Date()
     };
 
-    // Add test results if provided
     if (testResults) {
       answerData.visibleTestCasesPassed = testResults.visibleTestCasesPassed || 0;
       answerData.visibleTestCasesTotal = testResults.visibleTestCasesTotal || 0;
@@ -415,10 +547,8 @@ app.post('/api/test-session/save-answer', async (req, res) => {
     }
 
     if (existingAnswerIndex >= 0) {
-      // Update existing answer (overwrite)
       session.answers[existingAnswerIndex] = answerData;
     } else {
-      // Add new answer
       session.answers.push(answerData);
     }
 
@@ -432,7 +562,6 @@ app.post('/api/test-session/save-answer', async (req, res) => {
   }
 });
 
-// Submit entire test
 app.post('/api/test-session/submit', async (req, res) => {
   try {
     const sessionId = req.session.testSession || req.body.sessionId;
@@ -445,7 +574,6 @@ app.post('/api/test-session/submit', async (req, res) => {
 
     const endTime = new Date();
 
-    // Merge client answers with session answers
     if (clientAnswers) {
       for (const [qId, answer] of Object.entries(clientAnswers)) {
         const questionId = parseInt(qId);
@@ -467,11 +595,11 @@ app.post('/api/test-session/submit', async (req, res) => {
       }
     }
 
-    // Create submission record
     const submissionId = uuidv4();
     const submission = new Submission({
       submissionId,
       testId: session.testId,
+      studentId: session.studentId,
       candidateName: session.candidateName,
       candidateEmail: session.candidateEmail,
       startTime: session.startTime,
@@ -483,13 +611,19 @@ app.post('/api/test-session/submit', async (req, res) => {
     await submission.save();
     console.log('✅ Test submitted:', submissionId, '-', session.candidateName);
 
-    // Delete active session
+    await Student.updateOne(
+      { studentId: session.studentId },
+      {
+        hasCompletedTest: true,
+        submissionId: submissionId
+      }
+    );
+
     await ActiveSession.deleteOne({ sessionId });
-
-    // Clean up proctoring cache
     delete proctoringCache[sessionId];
+    req.session.testSession = null;
+    req.session.student = null;
 
-    // Notify admin
     io.to('admin-room').emit('test-submitted', {
       submissionId,
       sessionId,
@@ -508,11 +642,10 @@ app.post('/api/test-session/submit', async (req, res) => {
   }
 });
 
-// Get all submissions
 app.get('/api/submissions', requireAdmin, async (req, res) => {
   try {
     const submissions = await Submission.find()
-      .select('-answers.code') // Don't send full code in list view
+      .select('-answers.code')
       .sort({ submittedAt: -1 });
 
     const submissionList = submissions.map(sub => ({
@@ -535,7 +668,6 @@ app.get('/api/submissions', requireAdmin, async (req, res) => {
   }
 });
 
-// Get single submission (with full code)
 app.get('/api/submissions/:id', requireAdmin, async (req, res) => {
   try {
     const submission = await Submission.findOne({ submissionId: req.params.id });
@@ -551,7 +683,7 @@ app.get('/api/submissions/:id', requireAdmin, async (req, res) => {
 });
 
 // ============================================================================
-// CODE EXECUTION
+// CODE EXECUTION - NEW STDIN-BASED APPROACH
 // ============================================================================
 
 app.post('/api/execute', async (req, res) => {
@@ -567,7 +699,6 @@ app.post('/api/execute', async (req, res) => {
   try {
     const activeSessionId = req.session.testSession || sessionId;
 
-    // Get hidden test cases from database
     let hiddenTestCases = [];
     if (activeSessionId && questionId) {
       const session = await ActiveSession.findOne({ sessionId: activeSessionId });
@@ -587,11 +718,11 @@ app.post('/api/execute', async (req, res) => {
 
     console.log(`\n🔄 Executing ${allTestCases.length} test cases (${testCases.length} visible, ${hiddenTestCases.length} hidden)`);
 
-    // Execute code (Java only for now - can add Python/JS later)
     if (language === 'java') {
       for (let i = 0; i < allTestCases.length; i++) {
         const testCase = allTestCases[i];
 
+        // Extract imports from both solution and main template
         let allImports = new Set();
         const mainTemplateImports = (mainTemplate || '').match(/^import\s+.*?;\s*$/gm) || [];
         mainTemplateImports.forEach(imp => allImports.add(imp.trim()));
@@ -599,6 +730,7 @@ app.post('/api/execute', async (req, res) => {
         solutionImports.forEach(imp => allImports.add(imp.trim()));
         const importsBlock = Array.from(allImports).join('\n') + (allImports.size > 0 ? '\n\n' : '');
 
+        // Clean solution code (remove imports, class wrapper, main method)
         let cleanSolutionCode = solutionCode
           .replace(/^import\s+.*?;\s*$/gm, '')
           .replace(/public\s+class\s+Solution\s*\{/g, '')
@@ -606,6 +738,7 @@ app.post('/api/execute', async (req, res) => {
           .replace(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{[\s\S]*?\n\s*\}/gm, '')
           .trim();
 
+        // Remove extra closing brace if present
         if (cleanSolutionCode.endsWith('}')) {
           const openBraces = (cleanSolutionCode.match(/\{/g) || []).length;
           const closeBraces = (cleanSolutionCode.match(/\}/g) || []).length;
@@ -628,51 +761,51 @@ app.post('/api/execute', async (req, res) => {
           continue;
         }
 
+        // Clean main template (remove imports, class wrapper)
         let cleanMainTemplate = (mainTemplate || '')
           .replace(/^import\s+.*?;\s*$/gm, '')
           .replace(/public\s+class\s+Main\s*\{/g, '')
           .replace(/class\s+Main\s*\{/g, '')
           .trim();
 
+        // Extract main method content
         const mainMethodMatch = cleanMainTemplate.match(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{([\s\S]*)\}\s*$/);
         if (mainMethodMatch) {
           cleanMainTemplate = mainMethodMatch[1].trim();
         }
 
+        // Remove any trailing braces
         while (cleanMainTemplate.endsWith('}') && !cleanMainTemplate.includes('{')) {
           cleanMainTemplate = cleanMainTemplate.substring(0, cleanMainTemplate.lastIndexOf('}')).trim();
         }
 
-        let processedInput = testCase.input.trim();
-        if (!processedInput.includes(',') && !processedInput.includes('[') && !processedInput.includes('{') && processedInput.includes(' ')) {
-          processedInput = processedInput.split(/\s+/).join(', ');
-        }
-
-        const mainCodeWithInput = cleanMainTemplate.replace(/\{\{input\}\}/g, processedInput);
-
+        // Indent student code and main code
         const indentedSolution = cleanSolutionCode.split('\n').map(line => '    ' + line).join('\n');
-        const indentedMainCode = mainCodeWithInput.split('\n').map(line => '        ' + line).join('\n');
+        const indentedMainCode = cleanMainTemplate.split('\n').map(line => '        ' + line).join('\n');
 
+        // Build complete Java file
         const fullCode = `${importsBlock}public class Main {
+    // Student's functions/methods
+${indentedSolution}
+
+    // Test execution code
     public static void main(String[] args) {
 ${indentedMainCode}
     }
-}
-
-class Solution {
-${indentedSolution}
 }`;
 
         const startTime = Date.now();
 
         try {
+          // ✅ USE STDIN - Send test input directly via stdin
           const response = await fetch('https://emkc.org/api/v2/piston/execute', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               language: 'java',
               version: '15.0.2',
-              files: [{ name: 'Main.java', content: fullCode }]
+              files: [{ name: 'Main.java', content: fullCode }],
+              stdin: testCase.input  // ✅ Pass input directly to Scanner!
             })
           });
 
@@ -730,7 +863,6 @@ ${indentedSolution}
       });
     }
 
-    // Separate visible and hidden results
     const visibleResults = results.slice(0, testCases.length);
     const hiddenResults = results.slice(testCases.length);
 
@@ -768,7 +900,7 @@ ${indentedSolution}
 });
 
 // ============================================================================
-// SOCKET.IO - REAL-TIME MONITORING (proctoring in memory only, not saved)
+// SOCKET.IO
 // ============================================================================
 
 io.on('connection', (socket) => {
@@ -806,7 +938,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('video-frame', (data) => {
-    // Store in memory cache for live viewing only
     if (proctoringCache[data.sessionId]) {
       proctoringCache[data.sessionId].frames.push({
         frame: data.frame,
@@ -816,7 +947,6 @@ io.on('connection', (socket) => {
         proctoringCache[data.sessionId].frames.shift();
       }
     }
-    // Send to admin for live monitoring
     io.to('admin-room').emit('student-video-frame', {
       sessionId: data.sessionId,
       frame: data.frame,
@@ -825,7 +955,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('code-update', (data) => {
-    // Just forward to admin for live monitoring (not saved)
     io.to('admin-room').emit('student-code-update', {
       sessionId: data.sessionId,
       code: data.code,
@@ -835,11 +964,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('proctoring-alert', (data) => {
-    // Store in memory cache for live viewing only
     if (proctoringCache[data.sessionId]) {
       proctoringCache[data.sessionId].alerts.push(data.alert);
     }
-    // Send to admin for live monitoring
     io.to('admin-room').emit('proctoring-alert', {
       sessionId: data.sessionId,
       alert: data.alert,
@@ -881,6 +1008,7 @@ app.get('/api/health', async (req, res) => {
     const activeSessionsCount = await ActiveSession.countDocuments();
     const submissionsCount = await Submission.countDocuments();
     const testsCount = await Test.countDocuments();
+    const studentsCount = await Student.countDocuments();
 
     res.json({
       status: 'ok',
@@ -888,7 +1016,8 @@ app.get('/api/health', async (req, res) => {
       database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
       activeSessions: activeSessionsCount,
       totalSubmissions: submissionsCount,
-      totalTests: testsCount
+      totalTests: testsCount,
+      totalStudents: studentsCount
     });
   } catch (error) {
     res.status(500).json({
@@ -903,22 +1032,32 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║      🚀 Coding Test Platform - FIXED VERSION! ✅            ║
+║   🚀 Coding Test Platform - STDIN VERSION                 ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
 ✅ Server running on port ${PORT}
 🌐 Admin Panel: http://localhost:${PORT}/admin.html
-🔐 Default Credentials: admin / admin123
+🔐 Admin Credentials: Gorin / Gorin9056#
 
-✅ WHAT'S SAVED TO MONGODB:
-   📝 Tests (title, questions, test cases)
-   👤 Student info (name, email)
-   💻 Student code (for each question)
-   ⏰ Submission times
-   ✅ Test results (visible/hidden pass counts)
+✨ NEW: DIRECT SCANNER SUPPORT VIA STDIN
+   
+📝 HOW IT WORKS:
+   1. Write your main code with Scanner as usual
+   2. Add test inputs as plain text (e.g., "5" or "hello")
+   3. Scanner reads from stdin automatically!
+   
+💡 EXAMPLE:
+   Main Template:
+   Scanner sc = new Scanner(System.in);
+   int n = sc.nextInt();
+   Solution sol = new Solution();
+   System.out.println(sol.factorial(n));
+   
+   Test Input: 5
+   (Scanner reads "5" from stdin)
    
 💾 Database: ${MONGODB_URI.includes('mongodb+srv') ? 'MongoDB Atlas (Cloud)' : 'Local MongoDB'}
-🎯 Ready to track test submissions!
+🎯 Ready for testing!
   `);
 });
