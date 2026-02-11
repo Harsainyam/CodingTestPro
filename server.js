@@ -322,67 +322,163 @@ app.post('/api/execute', async (req, res) => {
     console.log(`📝 Language: ${language}`);
 
     // Language-specific execution
-    // ✅ CRITICAL FIX for Java compilation
-    // REPLACE the Java execution block in /api/execute endpoint
-
     if (language === 'java') {
-      // ===== JAVA EXECUTION - FIXED =====
+      // ===== JAVA EXECUTION - COMPLETELY FIXED =====
       for (let i = 0; i < allTestCases.length; i++) {
         const testCase = allTestCases[i];
 
-        // Extract imports from mainTemplate
-        let imports = '';
-        let mainCodeClean = mainTemplate || '';
+        // Step 1: Extract ALL imports from both solution and main template
+        let allImports = new Set();
+        
+        // Get imports from main template
+        const mainTemplateImports = (mainTemplate || '').match(/^import\s+.*?;\s*$/gm) || [];
+        mainTemplateImports.forEach(imp => allImports.add(imp.trim()));
+        
+        // Get imports from solution code
+        const solutionImports = solutionCode.match(/^import\s+.*?;\s*$/gm) || [];
+        solutionImports.forEach(imp => allImports.add(imp.trim()));
+        
+        const importsBlock = Array.from(allImports).join('\n') + (allImports.size > 0 ? '\n\n' : '');
 
-        const importMatches = mainCodeClean.match(/^import\s+.*?;\s*$/gm);
-        if (importMatches) {
-          imports = importMatches.join('\n') + '\n';
-          mainCodeClean = mainCodeClean.replace(/^import\s+.*?;\s*$/gm, '').trim();
+        // Step 2: Clean solution code - remove imports and any class/main declarations
+        let cleanSolutionCode = solutionCode
+          .replace(/^import\s+.*?;\s*$/gm, '')  // Remove imports
+          .replace(/public\s+class\s+Solution\s*\{/g, '')  // Remove public class Solution {
+          .replace(/class\s+Solution\s*\{/g, '')  // Remove class Solution {
+          .replace(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{[\s\S]*?\n\s*\}/gm, '')  // Remove any main methods
+          .trim();
+        
+        // Remove trailing closing brace if it's a leftover from class wrapper
+        if (cleanSolutionCode.endsWith('}')) {
+          // Count braces to see if we have an extra one
+          const openBraces = (cleanSolutionCode.match(/\{/g) || []).length;
+          const closeBraces = (cleanSolutionCode.match(/\}/g) || []).length;
+          if (closeBraces > openBraces) {
+            cleanSolutionCode = cleanSolutionCode.substring(0, cleanSolutionCode.lastIndexOf('}')).trim();
+          }
+        }
+        
+        // Validation: Check if solution code is essentially empty
+        if (!cleanSolutionCode || cleanSolutionCode === '' || cleanSolutionCode === '}') {
+          console.log(`   ❌ ERROR: Solution code is empty or invalid!`);
+          console.log(`   Original solution code: "${solutionCode}"`);
+          console.log(`   Cleaned solution code: "${cleanSolutionCode}"`);
+          
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: '',
+            passed: false,
+            error: 'Student solution code is empty! Please write your solution in the code editor.',
+            executionTime: 0,
+            status: 'error'
+          });
+          continue;
         }
 
-        // Clean solution code
-        let solutionClean = solutionCode.trim();
-        const solutionImports = solutionClean.match(/^import\s+.*?;\s*$/gm);
-        if (solutionImports) {
-          imports += solutionImports.join('\n') + '\n';
-          solutionClean = solutionClean.replace(/^import\s+.*?;\s*$/gm, '').trim();
+        // Step 3: Clean main template - remove imports and ensure it's just the main method body
+        let cleanMainTemplate = (mainTemplate || '')
+          .replace(/^import\s+.*?;\s*$/gm, '')  // Remove imports
+          .replace(/public\s+class\s+Main\s*\{/g, '')  // Remove public class Main {
+          .replace(/class\s+Main\s*\{/g, '')  // Remove class Main {
+          .trim();
+        
+        // If main template already has main method wrapper, extract just the body
+        const mainMethodMatch = cleanMainTemplate.match(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{([\s\S]*)\}\s*$/);
+        if (mainMethodMatch) {
+          cleanMainTemplate = mainMethodMatch[1].trim();
+        }
+        
+        // Remove trailing closing braces
+        while (cleanMainTemplate.endsWith('}') && !cleanMainTemplate.includes('{')) {
+          cleanMainTemplate = cleanMainTemplate.substring(0, cleanMainTemplate.lastIndexOf('}')).trim();
         }
 
-        // ✅ FIX: Ensure Solution class wrapper (NON-PUBLIC!)
-        if (!solutionClean.includes('class Solution')) {
-          solutionClean = `class Solution {\n${solutionClean}\n}`;
+        // Step 4: Replace {{input}} placeholder in main template
+        // Clean up the input: if it looks like multiple params separated by space, add commas
+        let processedInput = testCase.input.trim();
+        
+        // If input doesn't have commas but has spaces, it might need commas
+        // E.g., "2 3" should become "2, 3" for method calls
+        // BUT "new int[]{1 2 3}" should NOT be changed
+        // So only fix if it's simple arguments (no brackets)
+        if (!processedInput.includes(',') && 
+            !processedInput.includes('[') && 
+            !processedInput.includes('{') &&
+            processedInput.includes(' ')) {
+          // Multiple space-separated values without commas - add commas
+          processedInput = processedInput.split(/\s+/).join(', ');
         }
+        
+        const mainCodeWithInput = cleanMainTemplate.replace(/\{\{input\}\}/g, processedInput);
 
-        // ✅ CRITICAL FIX: Make sure Solution class is NOT public
-        // Only ONE class can be public in a Java file, and it must be Main
-        solutionClean = solutionClean.replace(/public\s+class\s+Solution/g, 'class Solution');
+        // Step 5: Construct the final Java file with proper structure
+        // Indent the solution code properly
+        const indentedSolution = cleanSolutionCode
+          .split('\n')
+          .map(line => '    ' + line)
+          .join('\n');
+        
+        // Indent the main code properly
+        const indentedMainCode = mainCodeWithInput
+          .split('\n')
+          .map(line => '        ' + line)
+          .join('\n');
+        
+        const fullCode = `${importsBlock}class Solution {
+${indentedSolution}
+}
 
-        // Replace {{input}} in main template
-        let mainWithInput = mainCodeClean.replace(/\{\{input\}\}/g, testCase.input);
-
-        // Ensure Main class wrapper if needed
-        if (!mainWithInput.includes('public class Main')) {
-          mainWithInput = `public class Main {\n    public static void main(String[] args) {\n        ${mainWithInput}\n    }\n}`;
-        }
-
-        // ✅ CRITICAL FIX: Combine properly - Solution BEFORE Main
-        // Both classes at SAME LEVEL (not nested)
-        const fullCode = `${imports}
-
-${solutionClean}
-
-${mainWithInput}`;
+public class Main {
+    public static void main(String[] args) {
+${indentedMainCode}
+    }
+}`;
 
         console.log(`\n📌 Test Case ${i + 1}:`);
         console.log(`   Input: ${testCase.input}`);
         console.log(`   Expected: ${testCase.output}`);
 
-        // Log the actual code being executed (for debugging)
+        // Log the actual code being executed (for debugging first test case only)
         if (i === 0) {
-          console.log('\n📄 Generated Java Code:');
+          console.log('\n' + '='.repeat(80));
+          console.log('📄 DEBUGGING - CODE GENERATION STEPS:');
+          console.log('='.repeat(80));
+          console.log('\n1️⃣ ORIGINAL SOLUTION CODE:');
+          console.log('---START---');
+          console.log(solutionCode);
+          console.log('---END---');
+          
+          console.log('\n2️⃣ ORIGINAL MAIN TEMPLATE:');
+          console.log('---START---');
+          console.log(mainTemplate);
+          console.log('---END---');
+          
+          console.log('\n3️⃣ CLEANED SOLUTION CODE:');
+          console.log('---START---');
+          console.log(cleanSolutionCode);
+          console.log('---END---');
+          
+          console.log('\n4️⃣ CLEANED MAIN TEMPLATE:');
+          console.log('---START---');
+          console.log(cleanMainTemplate);
+          console.log('---END---');
+          
+          console.log('\n🔧 INPUT PROCESSING:');
+          console.log(`Original input: "${testCase.input}"`);
+          console.log(`Processed input: "${processedInput}"`);
+          
+          console.log('\n5️⃣ MAIN CODE WITH INPUT REPLACED:');
+          console.log('---START---');
+          console.log(mainCodeWithInput);
+          console.log('---END---');
+          
+          console.log('\n6️⃣ FINAL GENERATED JAVA CODE:');
           console.log('---START---');
           console.log(fullCode);
-          console.log('---END---\n');
+          console.log('---END---');
+          console.log('='.repeat(80) + '\n');
         }
 
         const startTime = Date.now();
@@ -759,7 +855,7 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║        🚀 Coding Test Platform Server (ALL FIXED!)         ║
+║        🚀 Coding Test Platform Server (FIXED!)             ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -767,12 +863,27 @@ server.listen(PORT, () => {
 🌐 Admin Panel: http://localhost:${PORT}/admin.html
 🔐 Default Credentials: admin / admin123
 
-✅ ALL FIXES APPLIED:
-   ✅ AI Proctoring - Now stores and emits properly
-   ✅ Main Function Visibility - Locked view implemented
-   ✅ Multi-language Support - Python & JavaScript working
-   ✅ Code Execution - Proper template injection
-   ✅ Test Case Input/Output - {{input}} placeholder working
+✅ JAVA EXECUTION FIX APPLIED:
+   ✅ Solution class methods extracted cleanly
+   ✅ Main template body isolated properly
+   ✅ No duplicate class declarations
+   ✅ Imports handled correctly
+   ✅ {{input}} placeholder replaced in main code
+
+📝 HOW TO CREATE A TEST:
+   1. Student Code Template: Just the methods (no class wrapper needed)
+   2. Main Template: Code that calls the solution (with {{input}})
+   
+   Example:
+   Student Template:
+       public List<String> letterCombinations(String digits) {
+           // Student writes code here
+       }
+   
+   Main Template:
+       Solution sol = new Solution();
+       List<String> result = sol.letterCombinations({{input}});
+       System.out.println(result);
 
 🎯 Ready to accept test sessions!
   `);
