@@ -189,7 +189,7 @@
             min-width: 0;
         }
         
-        /* FIX #1: Improved resizable question display */
+        /* FIXED: Improved question display with better resizing */
         .question-display {
             padding: 30px;
             background: white;
@@ -198,8 +198,8 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             flex-shrink: 0;
             position: relative;
-            min-height: 180px;
-            max-height: 50vh;
+            height: 30vh; /* Fixed initial height */
+            min-height: 150px;
         }
         
         .question-display h2 {
@@ -250,36 +250,45 @@
             color: #333;
         }
         
-        /* FIX #1: Improved resize handle */
+        /* FIXED: Improved resize handle with better visual feedback */
         .resize-handle {
-            height: 8px;
-            background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+            height: 12px;
+            background: linear-gradient(to bottom, #f5f5f5, #e8e8e8);
             cursor: ns-resize;
             position: relative;
             flex-shrink: 0;
             border-top: 1px solid #d0d0d0;
             border-bottom: 1px solid #d0d0d0;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .resize-handle:hover {
             background: linear-gradient(to bottom, #667eea, #5568d3);
+            height: 14px;
         }
         
         .resize-handle::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 40px;
-            height: 4px;
-            background: #999;
-            border-radius: 2px;
+            content: '⋮';
+            color: #999;
+            font-size: 16px;
+            letter-spacing: 2px;
+            transition: color 0.2s;
         }
         
         .resize-handle:hover::before {
-            background: white;
+            color: white;
+        }
+        
+        .resize-handle.resizing {
+            background: linear-gradient(to bottom, #667eea, #5568d3);
+            height: 14px;
+        }
+        
+        .resize-handle.resizing::before {
+            color: white;
         }
         
         .editor-container {
@@ -376,29 +385,31 @@
             background: #444;
         }
         
-        /* FIX #1: Improved editor wrapper */
+        /* FIXED: Better editor wrapper with proper flex sizing */
         .editor-wrapper {
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-height: 300px;
+            min-height: 0;
             position: relative;
+            overflow: hidden;
         }
         
         #code-editor {
             flex: 1;
             width: 100%;
+            overflow: hidden;
         }
         
-        /* FIX #1: Improved output panel */
+        /* FIXED: Output panel with fixed initial height */
         .output-panel {
             background: #1e1e1e;
             color: #d4d4d4;
             overflow-y: auto;
             border-top: 2px solid #2d2d30;
             flex-shrink: 0;
-            min-height: 180px;
-            max-height: 50vh;
+            height: 25vh; /* Fixed initial height */
+            min-height: 150px;
         }
         
         .output-header {
@@ -430,7 +441,7 @@
             line-height: 1.6;
         }
         
-        /* FIX #3: Enhanced test results display */
+        /* Enhanced test results display */
         .test-results-summary {
             background: #2d2d30;
             padding: 20px;
@@ -845,7 +856,7 @@
             background: #555;
         }
         
-        /* FIX #2: Function signature display */
+        /* Function signature display */
         .function-signature {
             background: #f0f4ff;
             padding: 15px;
@@ -1034,7 +1045,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const testId = urlParams.get('id');
         
-        // FIX #1: Improved resize functionality
+        // FIXED: Improved resize functionality with debouncing
         function initResizeHandles() {
             const questionHandle = document.getElementById('question-resize-handle');
             const editorHandle = document.getElementById('editor-resize-handle');
@@ -1043,10 +1054,12 @@
             
             let isResizing = false;
             let currentHandle = null;
+            let resizeTimeout = null;
             
             function startResize(e, handle) {
                 isResizing = true;
                 currentHandle = handle;
+                handle.classList.add('resizing');
                 document.body.style.cursor = 'ns-resize';
                 document.body.style.userSelect = 'none';
                 e.preventDefault();
@@ -1056,42 +1069,50 @@
                 if (!isResizing) return;
                 
                 if (currentHandle === questionHandle) {
-                    const containerTop = questionDisplay.offsetTop;
+                    const containerTop = questionDisplay.getBoundingClientRect().top;
                     const newHeight = e.clientY - containerTop;
-                    const minHeight = 180;
-                    const maxHeight = window.innerHeight * 0.5;
+                    const minHeight = 150;
+                    const maxHeight = window.innerHeight * 0.6;
                     
                     if (newHeight >= minHeight && newHeight <= maxHeight) {
                         questionDisplay.style.height = newHeight + 'px';
-                        // FIX: Trigger Monaco layout update
-                        if (editor) {
-                            setTimeout(() => editor.layout(), 10);
-                        }
+                        
+                        // Debounced layout update
+                        clearTimeout(resizeTimeout);
+                        resizeTimeout = setTimeout(() => {
+                            if (editor) editor.layout();
+                        }, 50);
                     }
                 } else if (currentHandle === editorHandle) {
-                    const containerTop = outputPanel.offsetTop;
-                    const newHeight = window.innerHeight - e.clientY;
-                    const minHeight = 180;
-                    const maxHeight = window.innerHeight * 0.5;
+                    const containerBottom = window.innerHeight;
+                    const newHeight = containerBottom - e.clientY - 65; // Account for header
+                    const minHeight = 150;
+                    const maxHeight = window.innerHeight * 0.6;
                     
                     if (newHeight >= minHeight && newHeight <= maxHeight) {
                         outputPanel.style.height = newHeight + 'px';
-                        // FIX: Trigger Monaco layout update
-                        if (editor) {
-                            setTimeout(() => editor.layout(), 10);
-                        }
+                        
+                        // Debounced layout update
+                        clearTimeout(resizeTimeout);
+                        resizeTimeout = setTimeout(() => {
+                            if (editor) editor.layout();
+                        }, 50);
                     }
                 }
             }
             
             function stopResize() {
+                if (currentHandle) {
+                    currentHandle.classList.remove('resizing');
+                }
                 isResizing = false;
                 currentHandle = null;
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
-                // FIX: Final layout update after resize
+                
+                // Final layout update
                 if (editor) {
-                    setTimeout(() => editor.layout(), 10);
+                    setTimeout(() => editor.layout(), 100);
                 }
             }
             
@@ -1113,7 +1134,7 @@
                     value: '// Write your function here\n',
                     language: 'javascript',
                     theme: 'vs-dark',
-                    automaticLayout: true, // FIX: Auto-adjust to container size
+                    automaticLayout: false,
                     fontSize: 14,
                     minimap: { enabled: true },
                     scrollBeyondLastLine: false,
@@ -1125,7 +1146,7 @@
                     tabSize: 2,
                     suggestOnTriggerCharacters: true,
                     quickSuggestions: true,
-                    scrollbar: { // FIX: Enable scrollbars explicitly
+                    scrollbar: {
                         vertical: 'visible',
                         horizontal: 'visible',
                         verticalScrollbarSize: 10,
@@ -1135,18 +1156,22 @@
                 
                 editorInitialized = true;
                 
-                // FIX: Force layout update after a short delay
+                // Initial layout
                 setTimeout(() => {
                     if (editor) {
                         editor.layout();
                     }
                 }, 100);
                 
-                // FIX: Re-layout on window resize
+                // Re-layout on window resize with debouncing
+                let resizeTimeout;
                 window.addEventListener('resize', () => {
-                    if (editor) {
-                        editor.layout();
-                    }
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        if (editor) {
+                            editor.layout();
+                        }
+                    }, 100);
                 });
                 
                 editor.onDidChangeModelContent(() => {
@@ -1383,7 +1408,6 @@
             }
         }
         
-        // FIX #2: Load question with function signature
         function loadQuestion(index) {
             if (!testData || !testData.questions[index]) {
                 return;
@@ -1399,13 +1423,12 @@
             
             const display = document.getElementById('question-display');
             
-            // FIX #2: Display function signature if available
             let functionSignatureHTML = '';
-            if (question.functionName) {
+            if (question.functionSignature) {
                 functionSignatureHTML = `
                     <div class="function-signature">
                         <h4>📝 Function to Implement:</h4>
-                        <code>${question.functionSignature || question.template}</code>
+                        <code>${question.functionSignature}</code>
                     </div>
                 `;
             }
@@ -1455,7 +1478,6 @@
             }
         }
         
-        // FIX #2 & #3: Enhanced run code with hidden test cases
         async function runCode() {
             const question = testData.questions[currentQuestionIndex];
             const code = editor.getValue();
@@ -1469,7 +1491,6 @@
             outputPanel.innerHTML = '<pre>🔄 Executing your code...</pre>';
             
             try {
-                // FIX: Pass questionId and sessionId to get hidden test cases
                 const response = await fetch('/api/execute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1478,8 +1499,8 @@
                         testCases: question.visibleTestCases,
                         language,
                         functionName: question.functionName,
-                        questionId: question.id, // FIX: Send question ID to fetch hidden cases
-                        sessionId: sessionId // FIX: Send session ID
+                        questionId: question.id,
+                        sessionId: sessionId
                     })
                 });
                 
@@ -1513,12 +1534,10 @@
             }
         }
         
-        // FIX #3: Display results including hidden test cases
         function displayTestResults(result) {
             const outputPanel = document.getElementById('output-panel');
             const summary = result.summary;
             
-            // Determine summary color
             let summaryClass = 'all-passed';
             if (summary.passed === 0) {
                 summaryClass = 'all-failed';
@@ -1551,7 +1570,6 @@
                 </div>
             `;
             
-            // Display visible test cases
             result.visibleResults.forEach(r => {
                 const status = r.passed ? 'passed' : 'failed';
                 output += `
@@ -1573,7 +1591,6 @@
                 `;
             });
             
-            // FIX #3: Display hidden test case results (without showing inputs/outputs)
             if (result.hiddenResults && result.hiddenResults.length > 0) {
                 result.hiddenResults.forEach(r => {
                     const status = r.passed ? 'passed' : 'failed';
@@ -1868,4 +1885,3 @@
     </script>
 </body>
 </html>
-//Error: Main.java.java:2: error: package com.google.gson does not exist import com.google.gson.Gson; ^ 1 error error: compilation failed
