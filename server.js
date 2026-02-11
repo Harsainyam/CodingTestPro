@@ -93,7 +93,7 @@ function compareOutputs(actual, expected) {
     const actualParsed = JSON.parse(normalizedActual);
     const expectedParsed = JSON.parse(normalizedExpected);
     return JSON.stringify(actualParsed) === JSON.stringify(expectedParsed);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     const parseArray = (str) => {
@@ -111,7 +111,7 @@ function compareOutputs(actual, expected) {
       const matches = actualArray.every((val, idx) => val === expectedArray[idx]);
       if (matches) return true;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     const actualNum = parseFloat(normalizedActual);
@@ -120,7 +120,7 @@ function compareOutputs(actual, expected) {
     if (!isNaN(actualNum) && !isNaN(expectedNum)) {
       return Math.abs(actualNum - expectedNum) < 0.0001;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   if (normalizedActual.toLowerCase() === normalizedExpected.toLowerCase()) {
     return true;
@@ -200,13 +200,13 @@ for idx, tc in enumerate(test_cases):
       // FIXED: Handle both cases - student provides Solution class OR just the method
       let studentCode = code.trim();
       let hasSolutionClass = studentCode.includes('class Solution');
-      
+
       // If student already wrapped in Solution class, use it as-is
       // Otherwise, wrap their method in Solution class
       if (!hasSolutionClass) {
         studentCode = `class Solution {\n${studentCode}\n}`;
       }
-      
+
       return `import java.util.*;
 
 ${studentCode}
@@ -710,17 +710,17 @@ app.get('/api/submissions/:id', requireAdmin, (req, res) => {
 
 // FIXED: Enhanced code execution with proper hidden test case handling
 app.post('/api/execute', async (req, res) => {
-  const { code, testCases, language = 'javascript', functionName, questionId } = req.body;
+  const { solutionCode, mainTemplate, testCases, language = 'java', questionId } = req.body;
 
-  if (!code || !testCases || testCases.length === 0) {
+  if (!solutionCode || !mainTemplate || !testCases || testCases.length === 0) {
     return res.status(400).json({
       success: false,
-      error: 'Code and test cases are required'
+      error: 'Solution code, main template, and test cases are required'
     });
   }
 
   try {
-    // Get hidden test cases from the test definition
+    // Get hidden test cases
     const sessionId = req.session.testSession || req.body.sessionId;
     const session = activeTests[sessionId];
     
@@ -735,156 +735,118 @@ app.post('/api/execute', async (req, res) => {
       }
     }
     
-    const langConfig = getPistonLanguageConfig(language);
-    
-    // Combine visible and hidden test cases
     const allTestCases = [...testCases, ...hiddenTestCases];
-    const wrappedCode = wrapCodeWithTestHarness(code, allTestCases, language, functionName);
-
-    console.log('Executing code with', testCases.length, 'visible and', hiddenTestCases.length, 'hidden test cases');
-
-    const startTime = Date.now();
-
-    const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        language: langConfig.language,
-        version: langConfig.version,
-        files: [{
-          name: langConfig.file,
-          content: wrappedCode
-        }],
-        stdin: '',
-        args: [],
-        compile_timeout: 10000,
-        run_timeout: 5000
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Execution service error: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    const executionTime = Date.now() - startTime;
-
-    // Check compilation errors
-    if (result.compile && result.compile.stderr) {
-      const errorResults = allTestCases.map((tc, i) => ({
-        testCase: i + 1,
-        input: tc.input,
-        expectedOutput: tc.output,
-        actualOutput: '',
-        passed: false,
-        error: 'Compilation failed',
-        executionTime: 0,
-        status: 'compilation_error'
-      }));
+    const results = [];
+    
+    console.log(`Executing ${allTestCases.length} test cases (${testCases.length} visible, ${hiddenTestCases.length} hidden)`);
+    
+    // Execute each test case
+    for (let i = 0; i < allTestCases.length; i++) {
+      const testCase = allTestCases[i];
       
-      return res.json({
-        success: false,
-        error: 'Compilation Error',
-        details: result.compile.stderr,
-        visibleResults: errorResults.slice(0, testCases.length),
-        hiddenResults: errorResults.slice(testCases.length),
-        summary: {
-          total: allTestCases.length,
-          passed: 0,
-          failed: allTestCases.length,
-          allPassed: false,
-          percentage: 0,
-          visiblePassed: 0,
-          hiddenPassed: 0
+      // Replace {{input}} in main template with actual test input
+      const mainCode = mainTemplate.replace(/\{\{input\}\}/g, testCase.input);
+      
+      // Combine solution + main
+      const fullCode = solutionCode + '\n\n' + mainCode;
+      
+      console.log(`Test case ${i + 1}: Input="${testCase.input}", Expected="${testCase.output}"`);
+      
+      const startTime = Date.now();
+      
+      try {
+        const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            language: 'java',
+            version: '15.0.2',
+            files: [{
+              name: 'Main.java',
+              content: fullCode
+            }]
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Execution service error: ${response.statusText}`);
         }
-      });
-    }
-
-    // Parse output
-    const output = result.run?.stdout || '';
-    const stderr = result.run?.stderr || '';
-    const lines = output.split('\n').filter(line => line.trim());
-
-    console.log('Execution output:', output);
-    console.log('Found', lines.length, 'output lines');
-
-    const allResults = [];
-
-    allTestCases.forEach((tc, idx) => {
-      const resultLine = lines.find(line => line.startsWith(`TEST_CASE_${idx}:`));
-      const errorLine = lines.find(line => line.startsWith(`TEST_CASE_${idx}_ERROR:`));
-
-      if (errorLine) {
-        const error = errorLine.substring(`TEST_CASE_${idx}_ERROR:`.length);
-        allResults.push({
-          testCase: idx + 1,
-          input: tc.input,
-          expectedOutput: tc.output,
+        
+        const result = await response.json();
+        const executionTime = Date.now() - startTime;
+        
+        if (result.compile && result.compile.stderr) {
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: '',
+            passed: false,
+            error: 'Compilation failed: ' + result.compile.stderr,
+            executionTime,
+            status: 'compilation_error'
+          });
+          continue;
+        }
+        
+        const output = (result.run?.stdout || '').trim();
+        const stderr = result.run?.stderr || '';
+        
+        const passed = compareOutputs(output, testCase.output);
+        
+        console.log(`  Output: "${output}" | Expected: "${testCase.output}" | Passed: ${passed}`);
+        
+        results.push({
+          testCase: i + 1,
+          input: testCase.input,
+          expectedOutput: testCase.output,
+          actualOutput: output,
+          passed,
+          error: stderr || null,
+          executionTime,
+          status: passed ? 'passed' : 'failed'
+        });
+        
+      } catch (error) {
+        console.error(`Error in test case ${i + 1}:`, error);
+        results.push({
+          testCase: i + 1,
+          input: testCase.input,
+          expectedOutput: testCase.output,
           actualOutput: '',
           passed: false,
-          error: error,
-          executionTime: executionTime / allTestCases.length,
-          status: 'runtime_error'
-        });
-      } else if (resultLine) {
-        const actualOutput = resultLine.substring(`TEST_CASE_${idx}:`.length).trim();
-        const passed = compareOutputs(actualOutput, tc.output);
-
-        allResults.push({
-          testCase: idx + 1,
-          input: tc.input,
-          expectedOutput: tc.output,
-          actualOutput: actualOutput,
-          passed: passed,
-          executionTime: executionTime / allTestCases.length,
-          status: passed ? 'passed' : 'failed',
-          stderr: null
-        });
-      } else {
-        allResults.push({
-          testCase: idx + 1,
-          input: tc.input,
-          expectedOutput: tc.output,
-          actualOutput: '',
-          passed: false,
-          error: stderr || 'No output produced',
-          executionTime: executionTime / allTestCases.length,
-          status: 'no_output'
+          error: error.message,
+          executionTime: 0,
+          status: 'error'
         });
       }
-    });
-
+    }
+    
     // Separate visible and hidden results
-    const visibleResults = allResults.slice(0, testCases.length);
-    const hiddenResults = allResults.slice(testCases.length);
-
+    const visibleResults = results.slice(0, testCases.length);
+    const hiddenResults = results.slice(testCases.length);
+    
     const visiblePassed = visibleResults.filter(r => r.passed).length;
     const hiddenPassed = hiddenResults.filter(r => r.passed).length;
     const totalPassed = visiblePassed + hiddenPassed;
-    const totalTests = allResults.length;
-
-    console.log('Results:', {
-      total: totalTests,
-      passed: totalPassed,
-      visiblePassed,
-      hiddenPassed
-    });
-
+    
+    console.log(`Results: ${totalPassed}/${results.length} passed (${visiblePassed} visible, ${hiddenPassed} hidden)`);
+    
     res.json({
       success: true,
       visibleResults,
       hiddenResults,
       summary: {
-        total: totalTests,
+        total: results.length,
         passed: totalPassed,
-        failed: totalTests - totalPassed,
-        allPassed: totalPassed === totalTests,
-        percentage: totalTests > 0 ? ((totalPassed / totalTests) * 100).toFixed(2) : 0,
+        failed: results.length - totalPassed,
+        allPassed: totalPassed === results.length,
+        percentage: results.length > 0 ? ((totalPassed / results.length) * 100).toFixed(2) : 0,
         visiblePassed,
         hiddenPassed
       }
     });
-
+    
   } catch (error) {
     console.error('Code execution error:', error);
     res.status(500).json({
@@ -894,7 +856,6 @@ app.post('/api/execute', async (req, res) => {
     });
   }
 });
-
 // Custom input execution
 app.post('/api/execute/custom', async (req, res) => {
   const { code, customInput, language = 'javascript', functionName } = req.body;
@@ -908,10 +869,10 @@ app.post('/api/execute/custom', async (req, res) => {
 
   try {
     const langConfig = getPistonLanguageConfig(language);
-    
+
     const testCase = { input: customInput, output: '' };
     const wrappedCode = wrapCodeWithTestHarness(code, [testCase], language, functionName);
-    
+
     const startTime = Date.now();
 
     const response = await fetch('https://emkc.org/api/v2/piston/execute', {
@@ -949,7 +910,7 @@ app.post('/api/execute/custom', async (req, res) => {
 
     const output = result.run?.stdout || '';
     const resultLine = output.split('\n').find(line => line.startsWith('TEST_CASE_0:'));
-    
+
     let finalOutput = '';
     if (resultLine) {
       finalOutput = resultLine.substring('TEST_CASE_0:'.length).trim();
@@ -983,7 +944,7 @@ io.on('connection', (socket) => {
   socket.on('join-monitoring', (data) => {
     if (data.role === 'admin') {
       socket.join('admin-room');
-      
+
       const activeSessions = Object.keys(activeTests)
         .filter(sessionId => activeTests[sessionId].status === 'in_progress')
         .map(sessionId => ({
@@ -1000,7 +961,7 @@ io.on('connection', (socket) => {
 
     } else if (data.sessionId) {
       socket.join(`session-${data.sessionId}`);
-      
+
       if (activeTests[data.sessionId]) {
         io.to('admin-room').emit('student-connected', {
           sessionId: data.sessionId,

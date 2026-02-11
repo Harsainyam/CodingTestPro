@@ -292,6 +292,32 @@
             margin-bottom: 30px;
             color: #333;
         }
+        
+        .locked-template-hint {
+            background: #fff3cd;
+            border-left: 4px solid #ff4757;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .locked-template-hint strong {
+            color: #ff4757;
+        }
+        
+        .template-example {
+            background: #f0f4ff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .template-example code {
+            color: #667eea;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -442,27 +468,54 @@
                 <h4>Question ${questionCount}</h4>
                 <div class="form-group">
                     <label>Title</label>
-                    <input type="text" class="question-title" placeholder="Sum of Two Numbers" required>
+                    <input type="text" class="question-title" placeholder="Letter Combinations" required>
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea class="question-description" rows="4" placeholder="Write a Java method that returns the sum of two integers..." required></textarea>
+                    <textarea class="question-description" rows="4" placeholder="Write a Java method that..." required></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Initial Code Template</label>
-                    <textarea class="question-template" rows="6" placeholder="public class Solution {
-    public int sum(int a, int b) {
-        // Your code here
+                    <label>Student Code Template (They edit this)</label>
+                    <textarea class="question-template" rows="10" placeholder="class Solution {
+    public List<String> letterCombinations(String digits) {
+        // Write your code here
+        return new ArrayList<>();
     }
-}"></textarea>
+}" required></textarea>
+                    <p style="color: #666; font-size: 0.9em; margin-top: 8px;">
+                        💡 This is what students will see and can edit
+                    </p>
                 </div>
                 <div class="form-group">
-                    <label>Test Cases (Visible)</label>
+                    <label>Main Function Template (LOCKED - Students CANNOT Edit)</label>
+                    <textarea class="question-main-template" rows="15" placeholder="import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Solution sol = new Solution();
+        List<String> result = sol.letterCombinations({{input}});
+        System.out.println(result);
+    }
+}" required></textarea>
+                    <div class="locked-template-hint">
+                        <strong>🔒 LOCKED:</strong> Students will see this but CANNOT edit it!<br>
+                        This code controls how their solution is tested.
+                    </div>
+                    <div class="template-example">
+                        <strong>💡 Use <code>{{input}}</code> placeholder:</strong><br>
+                        • If test input is <code>"23"</code>, then <code>sol.method({{input}})</code> becomes <code>sol.method("23")</code><br>
+                        • If test input is <code>5, 10</code>, then <code>sol.add({{input}})</code> becomes <code>sol.add(5, 10)</code><br>
+                        <br>
+                        <strong>⚠️ Important:</strong> Always include necessary imports (Scanner, List, etc.)!
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Test Cases (Visible to student)</label>
                     <div class="test-cases-visible"></div>
                     <button type="button" class="btn btn-secondary" onclick="addTestCase(this, 'visible')">+ Add Visible Test Case</button>
                 </div>
                 <div class="form-group">
-                    <label>Test Cases (Hidden)</label>
+                    <label>Test Cases (Hidden from student)</label>
                     <div class="test-cases-hidden"></div>
                     <button type="button" class="btn btn-secondary" onclick="addTestCase(this, 'hidden')">+ Add Hidden Test Case</button>
                 </div>
@@ -476,8 +529,8 @@
             const testCaseDiv = document.createElement('div');
             testCaseDiv.className = 'test-case';
             testCaseDiv.innerHTML = `
-                <input type="text" placeholder="Input (e.g., 2, 3)" class="test-input" style="width: 45%; margin-right: 2%;">
-                <input type="text" placeholder="Expected Output (e.g., 5)" class="test-output" style="width: 45%; margin-right: 2%;">
+                <input type="text" placeholder='Input (e.g., "23" or 5, 10)' class="test-input" style="width: 45%; margin-right: 2%;">
+                <input type="text" placeholder='Expected Output (e.g., [abc, def])' class="test-output" style="width: 45%; margin-right: 2%;">
                 <button type="button" class="btn btn-danger" style="padding: 8px 12px;" onclick="this.parentElement.remove()">×</button>
             `;
             container.appendChild(testCaseDiv);
@@ -513,6 +566,7 @@
                     title: item.querySelector('.question-title').value,
                     description: item.querySelector('.question-description').value,
                     template: item.querySelector('.question-template').value,
+                    mainTemplate: item.querySelector('.question-main-template').value,
                     visibleTestCases: visibleTests,
                     hiddenTestCases: hiddenTests
                 });

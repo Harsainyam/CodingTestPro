@@ -1,26 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coding Test</title>
     <script src="/socket.io/socket.io.js"></script>
     <!-- Monaco Editor -->
-    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css">
+    <link rel="stylesheet" data-name="vs/editor/editor.main"
+        href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             height: 100vh;
             overflow: hidden;
             background: #f5f7fa;
         }
-        
+
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -28,29 +30,29 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             z-index: 100;
         }
-        
+
         .timer {
             font-size: 1.5em;
             font-weight: bold;
             font-family: 'Courier New', monospace;
         }
-        
+
         .proctoring-status {
             display: flex;
             gap: 15px;
             align-items: center;
         }
-        
+
         .status-indicator {
             display: flex;
             align-items: center;
             gap: 5px;
             font-size: 0.9em;
         }
-        
+
         .status-dot {
             width: 10px;
             height: 10px;
@@ -58,77 +60,84 @@
             background: #2ed573;
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
-        
+
         .status-dot.warning {
             background: #ffa502;
         }
-        
+
         .status-dot.error {
             background: #ff4757;
         }
-        
+
         .main-container {
             display: flex;
             height: calc(100vh - 65px);
         }
-        
+
         .sidebar {
             width: 320px;
             background: #ffffff;
             overflow-y: auto;
             border-right: 2px solid #e1e8ed;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
             flex-shrink: 0;
         }
-        
+
         .sidebar-header {
             padding: 20px;
             background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
             border-bottom: 2px solid #e1e8ed;
         }
-        
+
         .sidebar-header h3 {
             color: #333;
             font-size: 1.1em;
             margin-bottom: 10px;
         }
-        
+
         .progress-stats {
             display: flex;
             gap: 15px;
             margin-top: 10px;
         }
-        
+
         .stat-item {
             flex: 1;
             text-align: center;
             padding: 10px;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
-        
+
         .stat-number {
             font-size: 1.5em;
             font-weight: bold;
             color: #667eea;
         }
-        
+
         .stat-label {
             font-size: 0.75em;
             color: #666;
             margin-top: 5px;
         }
-        
+
         .question-list {
             padding: 20px;
         }
-        
+
         .question-item {
             background: white;
             padding: 15px;
@@ -137,37 +146,37 @@
             cursor: pointer;
             border-left: 4px solid #e0e0e0;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
-        
+
         .question-item:hover {
             border-left-color: #667eea;
             transform: translateX(5px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
         }
-        
+
         .question-item.active {
             border-left-color: #667eea;
             background: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
         }
-        
+
         .question-item.answered {
             border-left-color: #2ed573;
         }
-        
+
         .question-number {
             font-weight: bold;
             color: #667eea;
             font-size: 0.85em;
         }
-        
+
         .question-title {
             font-size: 0.95em;
             color: #333;
             margin-top: 5px;
         }
-        
+
         .question-difficulty {
             display: inline-block;
             padding: 3px 10px;
@@ -175,11 +184,22 @@
             font-size: 0.75em;
             margin-top: 8px;
         }
-        
-        .difficulty-easy { background: #2ed57320; color: #2ed573; }
-        .difficulty-medium { background: #ffa50220; color: #ffa502; }
-        .difficulty-hard { background: #ff475720; color: #ff4757; }
-        
+
+        .difficulty-easy {
+            background: #2ed57320;
+            color: #2ed573;
+        }
+
+        .difficulty-medium {
+            background: #ffa50220;
+            color: #ffa502;
+        }
+
+        .difficulty-hard {
+            background: #ff475720;
+            color: #ff4757;
+        }
+
         .content-area {
             flex: 1;
             display: flex;
@@ -188,33 +208,34 @@
             background: #f8f9fa;
             min-width: 0;
         }
-        
+
         /* FIXED: Improved question display with better resizing */
         .question-display {
             padding: 30px;
             background: white;
             border-bottom: 2px solid #e1e8ed;
             overflow-y: auto;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             flex-shrink: 0;
             position: relative;
-            height: 30vh; /* Fixed initial height */
+            height: 30vh;
+            /* Fixed initial height */
             min-height: 150px;
         }
-        
+
         .question-display h2 {
             color: #2c3e50;
             margin-bottom: 15px;
             font-size: 1.5em;
         }
-        
+
         .question-display p {
             color: #555;
             line-height: 1.8;
             white-space: pre-wrap;
             margin-bottom: 20px;
         }
-        
+
         .test-cases-display {
             margin-top: 25px;
             background: #f8f9fa;
@@ -222,26 +243,26 @@
             border-radius: 10px;
             border: 1px solid #e1e8ed;
         }
-        
+
         .test-cases-display h3 {
             color: #2c3e50;
             margin-bottom: 15px;
             font-size: 1.1em;
         }
-        
+
         .test-case-item {
             background: white;
             padding: 15px;
             margin: 12px 0;
             border-radius: 8px;
             border: 1px solid #e1e8ed;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
         }
-        
+
         .test-case-item strong {
             color: #667eea;
         }
-        
+
         .test-case-item code {
             background: #f0f4ff;
             padding: 2px 8px;
@@ -249,7 +270,7 @@
             font-family: 'Courier New', monospace;
             color: #333;
         }
-        
+
         /* FIXED: Improved resize handle with better visual feedback */
         .resize-handle {
             height: 12px;
@@ -264,12 +285,12 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .resize-handle:hover {
             background: linear-gradient(to bottom, #667eea, #5568d3);
             height: 14px;
         }
-        
+
         .resize-handle::before {
             content: '⋮';
             color: #999;
@@ -277,20 +298,20 @@
             letter-spacing: 2px;
             transition: color 0.2s;
         }
-        
+
         .resize-handle:hover::before {
             color: white;
         }
-        
+
         .resize-handle.resizing {
             background: linear-gradient(to bottom, #667eea, #5568d3);
             height: 14px;
         }
-        
+
         .resize-handle.resizing::before {
             color: white;
         }
-        
+
         .editor-container {
             flex: 1;
             display: flex;
@@ -299,7 +320,7 @@
             min-height: 0;
             position: relative;
         }
-        
+
         .editor-toolbar {
             background: #2d2d30;
             padding: 12px 20px;
@@ -309,7 +330,7 @@
             border-bottom: 1px solid #1e1e1e;
             flex-shrink: 0;
         }
-        
+
         .editor-toolbar select {
             background: #3e3e42;
             color: white;
@@ -319,12 +340,12 @@
             cursor: pointer;
             font-size: 0.9em;
         }
-        
+
         .editor-actions {
             display: flex;
             gap: 10px;
         }
-        
+
         .btn {
             padding: 10px 24px;
             border: none;
@@ -337,54 +358,54 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
-        
+
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
         }
-        
+
         .btn-run {
             background: #2ed573;
             color: white;
         }
-        
+
         .btn-run:hover:not(:disabled) {
             background: #26d367;
         }
-        
+
         .btn-submit {
             background: #667eea;
             color: white;
         }
-        
+
         .btn-submit:hover:not(:disabled) {
             background: #5568d3;
         }
-        
+
         .btn-custom {
             background: #ffa502;
             color: white;
         }
-        
+
         .btn-custom:hover:not(:disabled) {
             background: #ff9502;
         }
-        
+
         .btn-reset {
             background: #555;
             color: white;
         }
-        
+
         .btn-reset:hover:not(:disabled) {
             background: #444;
         }
-        
+
         /* FIXED: Better editor wrapper with proper flex sizing */
         .editor-wrapper {
             flex: 1;
@@ -394,13 +415,13 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         #code-editor {
             flex: 1;
             width: 100%;
             overflow: hidden;
         }
-        
+
         /* FIXED: Output panel with fixed initial height */
         .output-panel {
             background: #1e1e1e;
@@ -408,10 +429,11 @@
             overflow-y: auto;
             border-top: 2px solid #2d2d30;
             flex-shrink: 0;
-            height: 25vh; /* Fixed initial height */
+            height: 25vh;
+            /* Fixed initial height */
             min-height: 150px;
         }
-        
+
         .output-header {
             background: #2d2d30;
             padding: 12px 20px;
@@ -423,24 +445,24 @@
             top: 0;
             z-index: 10;
         }
-        
+
         .output-header h4 {
             color: #d4d4d4;
             font-size: 0.9em;
             font-weight: 600;
         }
-        
+
         .output-content {
             padding: 20px;
         }
-        
+
         .output-content pre {
             margin: 0;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
             font-size: 0.9em;
             line-height: 1.6;
         }
-        
+
         /* Enhanced test results display */
         .test-results-summary {
             background: #2d2d30;
@@ -451,11 +473,11 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .summary-section {
             flex: 1;
         }
-        
+
         .summary-title {
             color: #888;
             font-size: 0.85em;
@@ -463,35 +485,35 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .summary-stats {
             display: flex;
             gap: 30px;
             align-items: baseline;
         }
-        
+
         .summary-main {
             font-size: 2em;
             font-weight: bold;
         }
-        
+
         .summary-main.all-passed {
             color: #2ed573;
         }
-        
+
         .summary-main.some-failed {
             color: #ffa502;
         }
-        
+
         .summary-main.all-failed {
             color: #ff4757;
         }
-        
+
         .summary-detail {
             font-size: 0.95em;
             color: #aaa;
         }
-        
+
         .test-result {
             margin: 15px 0;
             padding: 18px;
@@ -499,45 +521,46 @@
             border-left: 4px solid;
             animation: slideIn 0.3s ease-out;
         }
-        
+
         @keyframes slideIn {
             from {
                 opacity: 0;
                 transform: translateX(-20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateX(0);
             }
         }
-        
+
         .test-result.passed {
             background: rgba(46, 213, 115, 0.1);
             border-left-color: #2ed573;
         }
-        
+
         .test-result.failed {
             background: rgba(255, 71, 87, 0.1);
             border-left-color: #ff4757;
         }
-        
+
         .test-result.hidden {
             background: rgba(102, 126, 234, 0.1);
             border-left-color: #667eea;
         }
-        
+
         .test-result-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 12px;
         }
-        
+
         .test-result-header strong {
             color: #fff;
             font-size: 1.05em;
         }
-        
+
         .test-result-badge {
             padding: 5px 14px;
             border-radius: 12px;
@@ -547,28 +570,28 @@
             align-items: center;
             gap: 5px;
         }
-        
+
         .badge-passed {
             background: #2ed573;
             color: white;
         }
-        
+
         .badge-failed {
             background: #ff4757;
             color: white;
         }
-        
+
         .badge-hidden {
             background: #667eea;
             color: white;
         }
-        
+
         .test-details {
             color: #b0b0b0;
             font-size: 0.9em;
             line-height: 1.9;
         }
-        
+
         .test-details code {
             background: #2d2d30;
             padding: 3px 8px;
@@ -576,7 +599,7 @@
             color: #4ec9b0;
             font-family: 'Consolas', monospace;
         }
-        
+
         .test-details .error-message {
             color: #ff4757;
             margin-top: 8px;
@@ -585,7 +608,7 @@
             border-radius: 4px;
             border-left: 3px solid #ff4757;
         }
-        
+
         #video-preview {
             position: fixed;
             bottom: 20px;
@@ -595,16 +618,16 @@
             border-radius: 12px;
             border: 3px solid #667eea;
             object-fit: cover;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
             z-index: 1000;
             transition: all 0.3s ease;
         }
-        
+
         #video-preview:hover {
             transform: scale(1.05);
-            box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
         }
-        
+
         .modal {
             display: none;
             position: fixed;
@@ -612,17 +635,17 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 2000;
             align-items: center;
             justify-content: center;
             backdrop-filter: blur(5px);
         }
-        
+
         .modal.active {
             display: flex;
         }
-        
+
         .modal-content {
             background: white;
             padding: 40px;
@@ -630,33 +653,34 @@
             max-width: 500px;
             width: 90%;
             text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: modalSlideIn 0.3s ease;
         }
-        
+
         @keyframes modalSlideIn {
             from {
                 opacity: 0;
                 transform: translateY(-50px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        
+
         .modal-content h2 {
             margin-bottom: 20px;
             color: #2c3e50;
             font-size: 1.8em;
         }
-        
+
         .modal-content p {
             color: #666;
             margin-bottom: 20px;
             line-height: 1.6;
         }
-        
+
         .modal-content input {
             width: 100%;
             padding: 14px;
@@ -666,12 +690,12 @@
             font-size: 1em;
             transition: border-color 0.3s;
         }
-        
+
         .modal-content input:focus {
             outline: none;
             border-color: #667eea;
         }
-        
+
         .warning-banner {
             display: none;
             background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
@@ -682,17 +706,27 @@
             box-shadow: 0 2px 10px rgba(255, 71, 87, 0.3);
             animation: shake 0.5s;
         }
-        
+
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px);
+            }
+
+            75% {
+                transform: translateX(10px);
+            }
         }
-        
+
         .warning-banner.active {
             display: block;
         }
-        
+
         .custom-input-overlay {
             display: none;
             position: fixed;
@@ -700,16 +734,16 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0, 0, 0, 0.9);
             z-index: 3000;
             align-items: center;
             justify-content: center;
         }
-        
+
         .custom-input-overlay.active {
             display: flex;
         }
-        
+
         .custom-input-container {
             background: #2d2d30;
             border-radius: 20px;
@@ -718,10 +752,10 @@
             max-height: 85vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
             overflow: hidden;
         }
-        
+
         .custom-input-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 25px 30px;
@@ -730,16 +764,16 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .custom-input-header h3 {
             font-size: 1.3em;
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        
+
         .close-custom-input {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
             width: 35px;
@@ -749,22 +783,22 @@
             font-size: 1.3em;
             transition: all 0.3s;
         }
-        
+
         .close-custom-input:hover {
-            background: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.3);
             transform: rotate(90deg);
         }
-        
+
         .custom-input-body {
             padding: 30px;
             overflow-y: auto;
             flex: 1;
         }
-        
+
         .input-section {
             margin-bottom: 25px;
         }
-        
+
         .input-section label {
             display: block;
             color: #d4d4d4;
@@ -772,7 +806,7 @@
             font-weight: 600;
             font-size: 0.95em;
         }
-        
+
         .input-section textarea {
             width: 100%;
             background: #1e1e1e;
@@ -786,19 +820,19 @@
             min-height: 120px;
             transition: border-color 0.3s;
         }
-        
+
         .input-section textarea:focus {
             outline: none;
             border-color: #667eea;
         }
-        
+
         .input-hint {
             color: #888;
             font-size: 0.85em;
             margin-top: 8px;
             font-style: italic;
         }
-        
+
         .custom-input-footer {
             padding: 20px 30px;
             background: #252526;
@@ -807,55 +841,57 @@
             gap: 15px;
             justify-content: flex-end;
         }
-        
+
         .loading {
             display: inline-block;
             width: 16px;
             height: 16px;
-            border: 3px solid rgba(255,255,255,0.3);
+            border: 3px solid rgba(255, 255, 255, 0.3);
             border-top-color: white;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-        
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .submit-test-section {
             padding: 20px;
             border-top: 2px solid #e1e8ed;
             background: #f8f9fa;
         }
-        
+
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
         }
-        
+
         ::-webkit-scrollbar-track {
             background: #f1f1f1;
         }
-        
+
         ::-webkit-scrollbar-thumb {
             background: #888;
             border-radius: 5px;
         }
-        
+
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
-        
+
         .output-panel::-webkit-scrollbar-track,
         .sidebar::-webkit-scrollbar-track {
             background: #2d2d30;
         }
-        
+
         .output-panel::-webkit-scrollbar-thumb,
         .sidebar::-webkit-scrollbar-thumb {
             background: #555;
         }
-        
+
         /* Function signature display */
         .function-signature {
             background: #f0f4ff;
@@ -864,13 +900,13 @@
             margin: 15px 0;
             border-left: 4px solid #667eea;
         }
-        
+
         .function-signature h4 {
             color: #667eea;
             margin-bottom: 10px;
             font-size: 0.95em;
         }
-        
+
         .function-signature code {
             display: block;
             background: white;
@@ -880,13 +916,61 @@
             color: #2c3e50;
             border: 1px solid #e0e0e0;
         }
+
+        .editor-split-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .editor-section {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .editor-section-header {
+            background: #2d2d30;
+            padding: 8px 15px;
+            color: #d4d4d4;
+            font-size: 0.85em;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e1e1e;
+        }
+
+        .locked-badge {
+            background: #ff4757;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        #solution-editor {
+            flex: 1;
+            min-height: 200px;
+        }
+
+        #main-editor {
+            flex: 0 0 200px;
+            background: #1e1e1e;
+            opacity: 0.7;
+        }
     </style>
 </head>
+
 <body>
     <div id="warning-banner" class="warning-banner">
         ⚠️ WARNING: Suspicious activity detected!
     </div>
-    
+
     <div id="info-modal" class="modal active">
         <div class="modal-content">
             <h2>🎓 Welcome to Your Coding Test</h2>
@@ -898,7 +982,7 @@
             </button>
         </div>
     </div>
-    
+
     <div id="permissions-modal" class="modal">
         <div class="modal-content">
             <h2>🎥 Enable Camera & Microphone</h2>
@@ -908,7 +992,7 @@
             </button>
         </div>
     </div>
-    
+
     <div id="custom-input-overlay" class="custom-input-overlay">
         <div class="custom-input-container">
             <div class="custom-input-header">
@@ -928,7 +1012,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="header">
         <div>
             <h2 id="test-title">Loading Test...</h2>
@@ -949,7 +1033,7 @@
             <div class="timer" id="timer">00:00</div>
         </div>
     </div>
-    
+
     <div class="main-container">
         <div class="sidebar">
             <div class="sidebar-header">
@@ -972,15 +1056,15 @@
                 </button>
             </div>
         </div>
-        
+
         <div class="content-area">
             <div class="question-display" id="question-display">
                 <h2>Select a question to begin</h2>
                 <p>Choose any question from the sidebar to start coding</p>
             </div>
-            
+
             <div class="resize-handle" id="question-resize-handle"></div>
-            
+
             <div class="editor-container">
                 <div class="editor-toolbar">
                     <select id="language-select" onchange="changeLanguage()">
@@ -1006,7 +1090,25 @@
                     </div>
                 </div>
                 <div class="editor-wrapper">
-                    <div id="code-editor"></div>
+                    <div class="editor-split-container">
+                        <!-- Student's Solution Code (Editable) -->
+                        <div class="editor-section" style="flex: 1;">
+                            <div class="editor-section-header">
+                                <span>✏️ Your Solution (Editable)</span>
+                                <span style="color: #2ed573; font-size: 0.75em;">● ACTIVE</span>
+                            </div>
+                            <div id="solution-editor"></div>
+                        </div>
+
+                        <!-- Main Function (Locked) -->
+                        <div class="editor-section" style="flex: 0 0 200px;">
+                            <div class="editor-section-header" style="background: #3d3d3d;">
+                                <span>🔒 Main Function (Locked)</span>
+                                <span class="locked-badge">🔒 READ-ONLY</span>
+                            </div>
+                            <div id="main-editor"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="resize-handle" id="editor-resize-handle"></div>
                 <div class="output-panel" id="output-panel-container">
@@ -1021,12 +1123,12 @@
             </div>
         </div>
     </div>
-    
+
     <video id="video-preview" autoplay muted></video>
     <canvas id="ai-canvas" style="display: none;"></canvas>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
-    
+
     <script>
         let socket;
         let testData = null;
@@ -1041,21 +1143,23 @@
         let isTestActive = false;
         let editor = null;
         let editorInitialized = false;
-        
+
         const urlParams = new URLSearchParams(window.location.search);
         const testId = urlParams.get('id');
-        
+        let solutionEditor = null; // Student's code
+        let mainEditor = null; // Locked main function
+
         // FIXED: Improved resize functionality with debouncing
         function initResizeHandles() {
             const questionHandle = document.getElementById('question-resize-handle');
             const editorHandle = document.getElementById('editor-resize-handle');
             const questionDisplay = document.querySelector('.question-display');
             const outputPanel = document.getElementById('output-panel-container');
-            
+
             let isResizing = false;
             let currentHandle = null;
             let resizeTimeout = null;
-            
+
             function startResize(e, handle) {
                 isResizing = true;
                 currentHandle = handle;
@@ -1064,19 +1168,19 @@
                 document.body.style.userSelect = 'none';
                 e.preventDefault();
             }
-            
+
             function doResize(e) {
                 if (!isResizing) return;
-                
+
                 if (currentHandle === questionHandle) {
                     const containerTop = questionDisplay.getBoundingClientRect().top;
                     const newHeight = e.clientY - containerTop;
                     const minHeight = 150;
                     const maxHeight = window.innerHeight * 0.6;
-                    
+
                     if (newHeight >= minHeight && newHeight <= maxHeight) {
                         questionDisplay.style.height = newHeight + 'px';
-                        
+
                         // Debounced layout update
                         clearTimeout(resizeTimeout);
                         resizeTimeout = setTimeout(() => {
@@ -1088,10 +1192,10 @@
                     const newHeight = containerBottom - e.clientY - 65; // Account for header
                     const minHeight = 150;
                     const maxHeight = window.innerHeight * 0.6;
-                    
+
                     if (newHeight >= minHeight && newHeight <= maxHeight) {
                         outputPanel.style.height = newHeight + 'px';
-                        
+
                         // Debounced layout update
                         clearTimeout(resizeTimeout);
                         resizeTimeout = setTimeout(() => {
@@ -1100,7 +1204,7 @@
                     }
                 }
             }
-            
+
             function stopResize() {
                 if (currentHandle) {
                     currentHandle.classList.remove('resizing');
@@ -1109,121 +1213,111 @@
                 currentHandle = null;
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
-                
+
                 // Final layout update
                 if (editor) {
                     setTimeout(() => editor.layout(), 100);
                 }
             }
-            
+
             questionHandle.addEventListener('mousedown', (e) => startResize(e, questionHandle));
             editorHandle.addEventListener('mousedown', (e) => startResize(e, editorHandle));
             document.addEventListener('mousemove', doResize);
             document.addEventListener('mouseup', stopResize);
         }
-        
+
         function initMonacoEditor() {
-            if (editorInitialized) {
-                return;
-            }
-            
-            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-            
-            require(['vs/editor/editor.main'], function() {
-                editor = monaco.editor.create(document.getElementById('code-editor'), {
-                    value: '// Write your function here\n',
-                    language: 'javascript',
+            if (editorInitialized) return;
+
+            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+
+            require(['vs/editor/editor.main'], function () {
+                // Student's editable solution editor
+                solutionEditor = monaco.editor.create(document.getElementById('solution-editor'), {
+                    value: '// Write your solution here\n',
+                    language: 'java',
                     theme: 'vs-dark',
-                    automaticLayout: false,
+                    automaticLayout: true,
                     fontSize: 14,
-                    minimap: { enabled: true },
-                    scrollBeyondLastLine: false,
-                    lineNumbers: 'on',
-                    roundedSelection: false,
-                    readOnly: false,
-                    cursorStyle: 'line',
-                    wordWrap: 'on',
-                    tabSize: 2,
-                    suggestOnTriggerCharacters: true,
-                    quickSuggestions: true,
+                    minimap: { enabled: false }
+                });
+
+                // Locked main function editor
+                mainEditor = monaco.editor.create(document.getElementById('main-editor'), {
+                    value: '// Main function will appear here\n',
+                    language: 'java',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    fontSize: 13,
+                    readOnly: true, // LOCKED
+                    minimap: { enabled: false },
+                    lineNumbers: 'off',
+                    glyphMargin: false,
+                    folding: false,
+                    lineDecorationsWidth: 0,
+                    lineNumbersMinChars: 0,
+                    renderLineHighlight: 'none',
                     scrollbar: {
-                        vertical: 'visible',
-                        horizontal: 'visible',
-                        verticalScrollbarSize: 10,
-                        horizontalScrollbarSize: 10
+                        vertical: 'hidden',
+                        horizontal: 'hidden'
                     }
                 });
-                
+
+                // Set gray background for locked editor
+                mainEditor.getDomNode().style.opacity = '0.7';
+
                 editorInitialized = true;
-                
-                // Initial layout
-                setTimeout(() => {
-                    if (editor) {
-                        editor.layout();
-                    }
-                }, 100);
-                
-                // Re-layout on window resize with debouncing
-                let resizeTimeout;
-                window.addEventListener('resize', () => {
-                    clearTimeout(resizeTimeout);
-                    resizeTimeout = setTimeout(() => {
-                        if (editor) {
-                            editor.layout();
-                        }
-                    }, 100);
-                });
-                
-                editor.onDidChangeModelContent(() => {
+
+                solutionEditor.onDidChangeModelContent(() => {
                     if (socket && isTestActive && testData && currentQuestionIndex < testData.questions.length) {
                         const question = testData.questions[currentQuestionIndex];
                         answers[question.id] = {
                             questionId: question.id,
-                            code: editor.getValue(),
+                            code: solutionEditor.getValue(),
                             language: document.getElementById('language-select').value,
                             lastModified: new Date().toISOString()
                         };
-                        
+
                         socket.emit('code-update', {
                             sessionId,
                             questionId: question.id,
-                            code: editor.getValue()
+                            code: solutionEditor.getValue()
                         });
                     }
                 });
             });
         }
-        
+
         async function loadTest() {
             try {
                 if (!testId) {
                     throw new Error('No test ID provided');
                 }
-                
+
                 const response = await fetch(`/api/tests/${testId}`);
-                
+
                 if (!response.ok) {
                     throw new Error('Test not found');
                 }
-                
+
                 testData = await response.json();
-                
+
                 console.log('Test loaded:', testData);
                 document.getElementById('test-title').textContent = testData.title;
                 document.getElementById('total-count').textContent = testData.questions.length;
-                
+
                 renderQuestionList();
-                
+
             } catch (error) {
                 console.error('Error loading test:', error);
                 alert('Error loading test: ' + error.message);
             }
         }
-        
+
         function renderQuestionList() {
             const questionList = document.getElementById('question-list');
             questionList.innerHTML = '';
-            
+
             testData.questions.forEach((q, index) => {
                 const div = document.createElement('div');
                 div.className = 'question-item';
@@ -1236,22 +1330,22 @@
                 questionList.appendChild(div);
             });
         }
-        
+
         async function startTest() {
             const name = document.getElementById('candidate-name').value.trim();
             const email = document.getElementById('candidate-email').value.trim();
-            
+
             if (!name || !email) {
                 alert('Please enter your name and email');
                 return;
             }
-            
+
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 alert('Please enter a valid email address');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/test-session/start', {
                     method: 'POST',
@@ -1262,104 +1356,104 @@
                         candidateEmail: email
                     })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to start test session');
                 }
-                
+
                 const data = await response.json();
                 sessionId = data.sessionId;
-                
+
                 document.getElementById('info-modal').classList.remove('active');
                 document.getElementById('permissions-modal').classList.add('active');
-                
+
             } catch (error) {
                 console.error('Error starting test:', error);
                 alert('Error starting test: ' + error.message);
             }
         }
-        
+
         async function requestPermissions() {
             try {
                 videoStream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: 1280, height: 720 },
                     audio: true
                 });
-                
+
                 document.getElementById('video-preview').srcObject = videoStream;
                 document.getElementById('camera-status').style.background = '#2ed573';
                 document.getElementById('mic-status').style.background = '#2ed573';
-                
+
             } catch (error) {
                 console.error('Camera access error:', error);
                 if (!confirm('Camera access denied. Continue without proctoring?')) {
                     return;
                 }
             }
-            
+
             document.getElementById('permissions-modal').classList.remove('active');
-            
+
             try {
                 socket = io();
                 socket.emit('join-monitoring', { sessionId });
             } catch (e) {
                 console.log('Socket.IO not available');
             }
-            
+
             if (testData && testData.duration) {
                 timeRemaining = testData.duration * 60;
             } else {
                 timeRemaining = 3600;
             }
-            
+
             isTestActive = true;
             startTimer();
             loadQuestion(0);
-            
+
             if (videoStream) {
                 startProctoring();
             }
-            
+
             setupTabDetection();
         }
-        
+
         function startTimer() {
             const timerElement = document.getElementById('timer');
-            
+
             if (timerInterval) {
                 clearInterval(timerInterval);
             }
-            
+
             updateTimerDisplay();
-            
+
             timerInterval = setInterval(() => {
                 if (!isTestActive) {
                     clearInterval(timerInterval);
                     return;
                 }
-                
+
                 timeRemaining--;
                 updateTimerDisplay();
-                
+
                 if (timeRemaining <= 0) {
                     clearInterval(timerInterval);
                     forceSubmitTest();
                 }
             }, 1000);
         }
-        
+
         function updateTimerDisplay() {
             const timerElement = document.getElementById('timer');
-            
+
             if (timeRemaining < 0) {
                 timeRemaining = 0;
             }
-            
+
             const minutes = Math.floor(timeRemaining / 60);
             const seconds = timeRemaining % 60;
-            timerElement.textContent = 
+            timerElement.textContent =
                 `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            
+
             if (timeRemaining < 300) {
                 timerElement.style.color = '#ff4757';
             } else if (timeRemaining < 600) {
@@ -1368,22 +1462,22 @@
                 timerElement.style.color = 'white';
             }
         }
-        
+
         async function forceSubmitTest() {
             console.log('Time expired - forcing submission');
-            
+
             const submitBtn = document.getElementById('submit-test-btn');
             submitBtn.disabled = true;
             submitBtn.textContent = '⏳ Auto-Submitting...';
-            
+
             isTestActive = false;
             clearInterval(timerInterval);
             clearInterval(aiInterval);
-            
+
             if (videoStream) {
                 videoStream.getTracks().forEach(track => track.stop());
             }
-            
+
             try {
                 const response = await fetch('/api/test-session/submit', {
                     method: 'POST',
@@ -1394,81 +1488,71 @@
                         autoSubmitted: true
                     })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to submit test');
                 }
-                
+
                 const result = await response.json();
                 window.location.href = `/success.html?submission=${result.submissionId}&auto=true`;
-                
+
             } catch (error) {
                 console.error('Error submitting test:', error);
                 alert('Failed to submit test. Please contact administrator.');
             }
         }
-        
+
         function loadQuestion(index) {
-            if (!testData || !testData.questions[index]) {
-                return;
-            }
-            
+            if (!testData || !testData.questions[index]) return;
+
             currentQuestionIndex = index;
             const question = testData.questions[index];
-            
+
+            // Update sidebar
             document.querySelectorAll('.question-item').forEach((item, i) => {
                 item.classList.remove('active');
                 if (i === index) item.classList.add('active');
             });
-            
+
+            // Update question display
             const display = document.getElementById('question-display');
-            
-            let functionSignatureHTML = '';
-            if (question.functionSignature) {
-                functionSignatureHTML = `
-                    <div class="function-signature">
-                        <h4>📝 Function to Implement:</h4>
-                        <code>${question.functionSignature}</code>
-                    </div>
-                `;
-            }
-            
-            let testCasesHTML = '<div class="test-cases-display"><h3>📋 Example Test Cases:</h3>';
-            question.visibleTestCases.forEach((tc, i) => {
-                testCasesHTML += `
-                    <div class="test-case-item">
-                        <strong>Test Case ${i + 1}:</strong><br>
-                        <strong>Input:</strong> <code>${tc.input}</code><br>
-                        <strong>Expected Output:</strong> <code>${tc.output}</code>
-                    </div>
-                `;
-            });
-            testCasesHTML += `<p style="color: #888; font-size: 0.9em; margin-top: 15px;">💡 Note: There are additional hidden test cases that will be used for final evaluation.</p>`;
-            testCasesHTML += '</div>';
-            
             display.innerHTML = `
-                <h2>Question ${index + 1}: ${question.title}</h2>
-                <span class="question-difficulty difficulty-${question.difficulty || 'easy'}">${(question.difficulty || 'easy').toUpperCase()}</span>
-                <p>${question.description}</p>
-                ${functionSignatureHTML}
-                ${testCasesHTML}
-            `;
-            
-            if (editor) {
-                const code = answers[question.id]?.code || question.template || '// Write your function here\n';
-                editor.setValue(code);
+        <h2>Question ${index + 1}: ${question.title}</h2>
+        <p>${question.description}</p>
+        <div class="test-cases-display">
+            <h3>📋 Example Test Cases:</h3>
+            ${question.visibleTestCases.map((tc, i) => `
+                <div class="test-case-item">
+                    <strong>Test Case ${i + 1}:</strong><br>
+                    <strong>Input:</strong> <code>${tc.input}</code><br>
+                    <strong>Expected Output:</strong> <code>${tc.output}</code>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+            // Load student code
+            if (solutionEditor) {
+                const code = answers[question.id]?.code || question.template || '// Write your solution here\n';
+                solutionEditor.setValue(code);
             }
-            
-            document.getElementById('output-panel').innerHTML = '<pre>Click "Run Tests" to execute your code against test cases...</pre>';
+
+            // Load LOCKED main function
+            if (mainEditor && question.mainTemplate) {
+                mainEditor.setValue(question.mainTemplate);
+            }
+
+            // Clear output
+            document.getElementById('output-panel').innerHTML = '<pre>Click "Run Tests" to execute your code...</pre>';
         }
-        
+
         function changeLanguage() {
             const lang = document.getElementById('language-select').value;
             if (editor) {
                 monaco.editor.setModelLanguage(editor.getModel(), lang);
             }
         }
-        
+
         function resetCode() {
             if (confirm('Are you sure you want to reset your code to the template?')) {
                 const question = testData.questions[currentQuestionIndex];
@@ -1477,74 +1561,64 @@
                 }
             }
         }
-        
+
         async function runCode() {
             const question = testData.questions[currentQuestionIndex];
-            const code = editor.getValue();
+            const solutionCode = solutionEditor.getValue();
+            const mainTemplate = question.mainTemplate;
             const language = document.getElementById('language-select').value;
-            
+
             const runBtn = document.getElementById('run-btn');
             runBtn.disabled = true;
             runBtn.innerHTML = '<span class="loading"></span> Running...';
-            
+
             const outputPanel = document.getElementById('output-panel');
             outputPanel.innerHTML = '<pre>🔄 Executing your code...</pre>';
-            
+
             try {
                 const response = await fetch('/api/execute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        code,
+                        solutionCode: solutionCode,
+                        mainTemplate: mainTemplate,
                         testCases: question.visibleTestCases,
                         language,
-                        functionName: question.functionName,
                         questionId: question.id,
                         sessionId: sessionId
                     })
                 });
-                
-                if (!response.ok) {
-                    throw new Error('Code execution failed');
-                }
-                
+
+                if (!response.ok) throw new Error('Execution failed');
+
                 const result = await response.json();
-                
-                if (!result.success) {
-                    throw new Error(result.error || 'Execution failed');
-                }
-                
                 displayTestResults(result);
-                
+
             } catch (error) {
                 console.error('Execution error:', error);
                 outputPanel.innerHTML = `
-                    <div class="test-result failed">
-                        <div class="test-result-header">
-                            <strong>❌ Execution Error</strong>
-                        </div>
-                        <div class="test-details">
-                            <div class="error-message">${error.message}</div>
-                        </div>
-                    </div>
-                `;
+            <div class="test-result failed">
+                <strong>❌ Execution Error</strong><br>
+                ${error.message}
+            </div>
+        `;
             } finally {
                 runBtn.disabled = false;
                 runBtn.innerHTML = '▶ Run Tests';
             }
         }
-        
+
         function displayTestResults(result) {
             const outputPanel = document.getElementById('output-panel');
             const summary = result.summary;
-            
+
             let summaryClass = 'all-passed';
             if (summary.passed === 0) {
                 summaryClass = 'all-failed';
             } else if (summary.passed < summary.total) {
                 summaryClass = 'some-failed';
             }
-            
+
             let output = `
                 <div class="test-results-summary">
                     <div class="summary-section">
@@ -1569,7 +1643,7 @@
                     </div>
                 </div>
             `;
-            
+
             result.visibleResults.forEach(r => {
                 const status = r.passed ? 'passed' : 'failed';
                 output += `
@@ -1590,7 +1664,7 @@
                     </div>
                 `;
             });
-            
+
             if (result.hiddenResults && result.hiddenResults.length > 0) {
                 result.hiddenResults.forEach(r => {
                     const status = r.passed ? 'passed' : 'failed';
@@ -1611,35 +1685,35 @@
                     `;
                 });
             }
-            
+
             outputPanel.innerHTML = output;
         }
-        
+
         function openCustomInput() {
             document.getElementById('custom-input-overlay').classList.add('active');
             document.getElementById('custom-input-field').value = '';
         }
-        
+
         function closeCustomInput() {
             document.getElementById('custom-input-overlay').classList.remove('active');
         }
-        
+
         async function executeCustomInput() {
             const customInput = document.getElementById('custom-input-field').value;
             const code = editor.getValue();
             const language = document.getElementById('language-select').value;
             const question = testData.questions[currentQuestionIndex];
-            
+
             if (!customInput.trim()) {
                 alert('Please enter input values');
                 return;
             }
-            
+
             const outputPanel = document.getElementById('output-panel');
             outputPanel.innerHTML = '<pre>🔄 Executing with custom input...</pre>';
-            
+
             closeCustomInput();
-            
+
             try {
                 const response = await fetch('/api/execute/custom', {
                     method: 'POST',
@@ -1651,13 +1725,13 @@
                         functionName: question.functionName
                     })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Execution failed');
                 }
-                
+
                 const result = await response.json();
-                
+
                 let html = `
                     <div class="test-results-summary">
                         <div class="summary-section">
@@ -1684,9 +1758,9 @@
                         </div>
                     </div>
                 `;
-                
+
                 outputPanel.innerHTML = html;
-                
+
             } catch (error) {
                 console.error('Custom execution error:', error);
                 outputPanel.innerHTML = `
@@ -1697,46 +1771,46 @@
                 `;
             }
         }
-        
+
         function submitQuestion() {
             const question = testData.questions[currentQuestionIndex];
             const code = editor.getValue();
             const language = document.getElementById('language-select').value;
-            
+
             if (!code.trim() || code.trim() === '// Write your function here') {
                 if (!confirm('Your code appears to be empty. Submit anyway?')) {
                     return;
                 }
             }
-            
+
             answers[question.id] = {
                 questionId: question.id,
                 code: code,
                 language: language,
                 submittedAt: new Date().toISOString()
             };
-            
+
             document.querySelectorAll('.question-item')[currentQuestionIndex].classList.add('answered');
-            
+
             const answeredCount = Object.keys(answers).length;
             document.getElementById('answered-count').textContent = answeredCount;
-            
+
             alert('✓ Question submitted successfully!');
-            
+
             if (currentQuestionIndex < testData.questions.length - 1) {
                 loadQuestion(currentQuestionIndex + 1);
             }
         }
-        
+
         async function submitTest() {
             const submitBtn = document.getElementById('submit-test-btn');
             if (submitBtn.disabled) {
                 return;
             }
-            
+
             const answeredCount = Object.keys(answers).length;
             const totalQuestions = testData.questions.length;
-            
+
             if (answeredCount === 0) {
                 if (!confirm('You haven\'t answered any questions. Are you sure you want to submit?')) {
                     return;
@@ -1750,18 +1824,18 @@
                     return;
                 }
             }
-            
+
             submitBtn.disabled = true;
             submitBtn.textContent = '⏳ Submitting...';
-            
+
             isTestActive = false;
             clearInterval(timerInterval);
             clearInterval(aiInterval);
-            
+
             if (videoStream) {
                 videoStream.getTracks().forEach(track => track.stop());
             }
-            
+
             try {
                 const response = await fetch('/api/test-session/submit', {
                     method: 'POST',
@@ -1771,63 +1845,63 @@
                         answers
                     })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to submit test');
                 }
-                
+
                 const result = await response.json();
                 window.location.href = `/success.html?submission=${result.submissionId}`;
-                
+
             } catch (error) {
                 console.error('Error submitting test:', error);
                 alert('Error submitting test: ' + error.message + '\n\nPlease try again.');
-                
+
                 submitBtn.disabled = false;
                 submitBtn.textContent = '📤 Submit Test';
-                
+
                 isTestActive = true;
                 if (!timerInterval) {
                     startTimer();
                 }
             }
         }
-        
+
         function startProctoring() {
             const canvas = document.getElementById('ai-canvas');
             const ctx = canvas.getContext('2d');
             const video = document.getElementById('video-preview');
-            
+
             canvas.width = 320;
             canvas.height = 240;
-            
+
             aiInterval = setInterval(() => {
                 if (!isTestActive) return;
-                
+
                 try {
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     const frame = canvas.toDataURL('image/jpeg', 0.5);
-                    
+
                     if (socket) {
                         socket.emit('video-frame', { sessionId, frame });
                     }
-                    
+
                     analyzeFrame(frame);
                 } catch (e) {
                     console.log('Proctoring frame capture error:', e);
                 }
-                
+
             }, 3000);
         }
-        
+
         async function analyzeFrame(frameData) {
             const random = Math.random();
-            
+
             if (random < 0.05) {
                 const warning = document.getElementById('warning-banner');
                 warning.textContent = '⚠️ WARNING: Please keep your eyes on the screen';
                 warning.classList.add('active');
-                
+
                 if (socket) {
                     socket.emit('proctoring-alert', {
                         sessionId,
@@ -1839,19 +1913,19 @@
                         }
                     });
                 }
-                
+
                 setTimeout(() => {
                     warning.classList.remove('active');
                 }, 3000);
             }
         }
-        
+
         function setupTabDetection() {
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden && isTestActive) {
                     tabSwitchCount++;
                     document.getElementById('focus-status').style.background = '#ff4757';
-                    
+
                     if (socket) {
                         socket.emit('proctoring-alert', {
                             sessionId,
@@ -1864,7 +1938,7 @@
                             }
                         });
                     }
-                    
+
                     if (tabSwitchCount >= 3) {
                         alert(`⚠️ WARNING: You have switched tabs ${tabSwitchCount} times. This is being recorded.`);
                     }
@@ -1873,15 +1947,16 @@
                 }
             });
         }
-        
+
         window.addEventListener('load', () => {
             initMonacoEditor();
             initResizeHandles();
-            
+
             if (testId) {
                 loadTest();
             }
         });
     </script>
 </body>
+
 </html>
