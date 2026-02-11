@@ -6,6 +6,7 @@ const session = require('express-session');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const fetch = require('node-fetch');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +16,106 @@ const io = socketIO(server, {
     methods: ['GET', 'POST']
   }
 });
+
+// ============================================================================
+// MONGODB CONNECTION
+// ============================================================================
+// Replace with your MongoDB Atlas connection string
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/coding-test-platform';
+
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log('✅ MongoDB Connected Successfully'))
+.catch(err => console.error('❌ MongoDB Connection Error:', err));
+
+// ============================================================================
+// MONGODB SCHEMAS - ONLY TEST DATA
+// ============================================================================
+
+// Test Schema
+const testSchema = new mongoose.Schema({
+  testId: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  duration: { type: Number, required: true },
+  instructions: String,
+  questions: [{
+    id: Number,
+    title: String,
+    description: String,
+    template: String,
+    mainTemplate: String,
+    difficulty: String,
+    visibleTestCases: [{
+      input: String,
+      output: String
+    }],
+    hiddenTestCases: [{
+      input: String,
+      output: String
+    }]
+  }],
+  link: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: Date
+});
+
+const Test = mongoose.model('Test', testSchema);
+
+// Submission Schema - ONLY ESSENTIAL TEST DATA
+const submissionSchema = new mongoose.Schema({
+  submissionId: { type: String, required: true, unique: true },
+  testId: { type: String, required: true },
+  
+  // Student Info
+  candidateName: { type: String, required: true },
+  candidateEmail: { type: String, required: true },
+  
+  // Test Timing
+  startTime: { type: Date, required: true },
+  endTime: Date,
+  submittedAt: Date,
+  
+  // Question Answers
+  answers: [{
+    questionId: Number,
+    code: String,
+    language: String,
+    submittedAt: Date,
+    
+    // Test Results
+    visibleTestCasesPassed: { type: Number, default: 0 },
+    visibleTestCasesTotal: { type: Number, default: 0 },
+    hiddenTestCasesPassed: { type: Number, default: 0 },
+    hiddenTestCasesTotal: { type: Number, default: 0 }
+  }]
+});
+
+const Submission = mongoose.model('Submission', submissionSchema);
+
+// Active Session Schema (temporary during test)
+const activeSessionSchema = new mongoose.Schema({
+  sessionId: { type: String, required: true, unique: true },
+  testId: { type: String, required: true },
+  candidateName: { type: String, required: true },
+  candidateEmail: { type: String, required: true },
+  startTime: { type: Date, default: Date.now },
+  
+  // Current answers (gets moved to Submission on submit)
+  answers: [{
+    questionId: Number,
+    code: String,
+    language: String,
+    submittedAt: Date,
+    visibleTestCasesPassed: { type: Number, default: 0 },
+    visibleTestCasesTotal: { type: Number, default: 0 },
+    hiddenTestCasesPassed: { type: Number, default: 0 },
+    hiddenTestCasesTotal: { type: Number, default: 0 }
+  }]
+});
+
+const ActiveSession = mongoose.model('ActiveSession', activeSessionSchema);
 
 // Middleware
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -27,7 +128,7 @@ app.use(session({
   cookie: { secure: false }
 }));
 
-// In-memory storage
+// In-memory storage (only for users and proctoring display - NOT saved to DB)
 const users = {
   admin: {
     username: 'admin',
@@ -36,10 +137,8 @@ const users = {
   }
 };
 
-const tests = {};
-const submissions = {};
-const activeTests = {};
-const proctoringData = {};
+// Proctoring data - ONLY for live monitoring, NOT saved to database
+const proctoringCache = {};
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
@@ -72,9 +171,7 @@ function compareOutputs(actual, expected) {
   const normalizedActual = normalizeOutput(actual);
   const normalizedExpected = normalizeOutput(expected);
 
-  if (normalizedActual === normalizedExpected) {
-    return true;
-  }
+  if (normalizedActual === normalizedExpected) return true;
 
   try {
     const actualParsed = JSON.parse(normalizedActual);
@@ -84,16 +181,10 @@ function compareOutputs(actual, expected) {
 
   try {
     const parseArray = (str) => {
-      return str
-        .replace(/[\[\]"']/g, '')
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+      return str.replace(/[\[\]"']/g, '').split(',').map(s => s.trim()).filter(s => s.length > 0);
     };
-
     const actualArray = parseArray(normalizedActual);
     const expectedArray = parseArray(normalizedExpected);
-
     if (actualArray.length === expectedArray.length) {
       const matches = actualArray.every((val, idx) => val === expectedArray[idx]);
       if (matches) return true;
@@ -103,23 +194,22 @@ function compareOutputs(actual, expected) {
   try {
     const actualNum = parseFloat(normalizedActual);
     const expectedNum = parseFloat(normalizedExpected);
-
     if (!isNaN(actualNum) && !isNaN(expectedNum)) {
       return Math.abs(actualNum - expectedNum) < 0.0001;
     }
   } catch (e) { }
 
-  if (normalizedActual.toLowerCase() === normalizedExpected.toLowerCase()) {
-    return true;
-  }
+  if (normalizedActual.toLowerCase() === normalizedExpected.toLowerCase()) return true;
 
   return actual.trim() === expected.trim();
 }
 
-// Routes
+// ============================================================================
+// ROUTES
+// ============================================================================
+
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-
   if (username === 'admin' && password === 'admin123') {
     req.session.user = { username: 'admin', role: 'admin' };
     res.json({ success: true, role: 'admin' });
@@ -141,174 +231,302 @@ app.get('/api/check-auth', (req, res) => {
   }
 });
 
-app.post('/api/tests', requireAdmin, (req, res) => {
-  const testId = uuidv4();
-  const protocol = req.protocol;
-  const host = req.get('host');
-  const testLink = `${protocol}://${host}/test.html?id=${testId}`;
+// Create Test
+app.post('/api/tests', requireAdmin, async (req, res) => {
+  try {
+    const testId = uuidv4();
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const testLink = `${protocol}://${host}/test.html?id=${testId}`;
 
-  const test = {
-    id: testId,
-    ...req.body,
-    createdAt: new Date().toISOString(),
-    link: testLink
-  };
+    const test = new Test({
+      testId,
+      title: req.body.title,
+      duration: req.body.duration,
+      instructions: req.body.instructions,
+      questions: req.body.questions,
+      link: testLink
+    });
 
-  tests[testId] = test;
-
-  res.json({ success: true, test });
-});
-
-app.get('/api/tests', requireAdmin, (req, res) => {
-  res.json(Object.values(tests));
-});
-
-app.get('/api/tests/:id', (req, res) => {
-  const test = tests[req.params.id];
-  if (test) {
-    res.json(test);
-  } else {
-    res.status(404).json({ error: 'Test not found' });
-  }
-});
-
-app.patch('/api/tests/:id', requireAdmin, (req, res) => {
-  const test = tests[req.params.id];
-  if (test) {
-    // Update only provided fields
-    if (req.body.title) test.title = req.body.title;
-    if (req.body.duration) test.duration = req.body.duration;
-    if (req.body.instructions !== undefined) test.instructions = req.body.instructions;
-    
-    test.updatedAt = new Date().toISOString();
-    
+    await test.save();
+    console.log('✅ Test saved to MongoDB:', testId);
     res.json({ success: true, test });
-  } else {
-    res.status(404).json({ error: 'Test not found' });
+  } catch (error) {
+    console.error('❌ Error creating test:', error);
+    res.status(500).json({ error: 'Failed to create test' });
   }
 });
 
-app.delete('/api/tests/:id', requireAdmin, (req, res) => {
-  if (tests[req.params.id]) {
-    delete tests[req.params.id];
+// Get all tests
+app.get('/api/tests', requireAdmin, async (req, res) => {
+  try {
+    const tests = await Test.find().sort({ createdAt: -1 });
+    res.json(tests);
+  } catch (error) {
+    console.error('Error fetching tests:', error);
+    res.status(500).json({ error: 'Failed to fetch tests' });
+  }
+});
+
+// Get single test
+app.get('/api/tests/:id', async (req, res) => {
+  try {
+    const test = await Test.findOne({ testId: req.params.id });
+    if (test) {
+      res.json(test);
+    } else {
+      res.status(404).json({ error: 'Test not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching test:', error);
+    res.status(500).json({ error: 'Failed to fetch test' });
+  }
+});
+
+// Update test
+app.patch('/api/tests/:id', requireAdmin, async (req, res) => {
+  try {
+    const test = await Test.findOne({ testId: req.params.id });
+    if (test) {
+      if (req.body.title) test.title = req.body.title;
+      if (req.body.duration) test.duration = req.body.duration;
+      if (req.body.instructions !== undefined) test.instructions = req.body.instructions;
+      test.updatedAt = new Date();
+      await test.save();
+      res.json({ success: true, test });
+    } else {
+      res.status(404).json({ error: 'Test not found' });
+    }
+  } catch (error) {
+    console.error('Error updating test:', error);
+    res.status(500).json({ error: 'Failed to update test' });
+  }
+});
+
+// Delete test
+app.delete('/api/tests/:id', requireAdmin, async (req, res) => {
+  try {
+    await Test.deleteOne({ testId: req.params.id });
     res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Test not found' });
-  }
-});
-
-// Test Session APIs
-app.post('/api/test-session/start', (req, res) => {
-  const { testId, candidateName, candidateEmail } = req.body;
-  const test = tests[testId];
-
-  if (!test) {
-    return res.status(404).json({ error: 'Test not found' });
-  }
-
-  if (!candidateName || !candidateEmail) {
-    return res.status(400).json({ error: 'Name and email are required' });
-  }
-
-  const sessionId = uuidv4();
-  activeTests[sessionId] = {
-    sessionId,
-    testId,
-    candidateName,
-    candidateEmail,
-    startTime: new Date().toISOString(),
-    answers: {},
-    proctoringLogs: [],
-    tabSwitches: 0,
-    violations: [],
-    status: 'in_progress'
-  };
-
-  proctoringData[sessionId] = {
-    frames: [],
-    alerts: [],
-    codeSnapshots: []
-  };
-
-  req.session.testSession = sessionId;
-
-  res.json({ success: true, sessionId, startTime: activeTests[sessionId].startTime });
-});
-
-app.post('/api/test-session/submit', (req, res) => {
-  const sessionId = req.session.testSession || req.body.sessionId;
-  const session = activeTests[sessionId];
-
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  if (session.status === 'submitted') {
-    return res.status(400).json({ error: 'Test already submitted' });
-  }
-
-  session.endTime = new Date().toISOString();
-  session.answers = req.body.answers || {};
-  session.status = 'submitted';
-
-  const startTime = new Date(session.startTime);
-  const endTime = new Date(session.endTime);
-  session.duration = Math.floor((endTime - startTime) / 1000);
-
-  const submissionId = uuidv4();
-  submissions[submissionId] = {
-    id: submissionId,
-    ...session,
-    proctoringData: proctoringData[sessionId],
-    submittedAt: session.endTime
-  };
-
-  io.to('admin-room').emit('test-submitted', {
-    submissionId,
-    sessionId,
-    candidateName: session.candidateName,
-    candidateEmail: session.candidateEmail
-  });
-
-  res.json({
-    success: true,
-    submissionId,
-    message: 'Test submitted successfully'
-  });
-});
-
-app.get('/api/submissions', requireAdmin, (req, res) => {
-  const submissionList = Object.values(submissions).map(sub => ({
-    id: sub.id,
-    sessionId: sub.sessionId,
-    candidateName: sub.candidateName,
-    candidateEmail: sub.candidateEmail,
-    testId: sub.testId,
-    startTime: sub.startTime,
-    endTime: sub.endTime,
-    duration: sub.duration,
-    status: sub.status,
-    tabSwitches: sub.tabSwitches,
-    violations: sub.violations.length,
-    answeredQuestions: Object.keys(sub.answers).length
-  }));
-  res.json(submissionList);
-});
-
-app.get('/api/submissions/:id', requireAdmin, (req, res) => {
-  const submission = submissions[req.params.id];
-  if (submission) {
-    res.json(submission);
-  } else {
-    res.status(404).json({ error: 'Submission not found' });
+  } catch (error) {
+    console.error('Error deleting test:', error);
+    res.status(500).json({ error: 'Failed to delete test' });
   }
 });
 
 // ============================================================================
-// FIXED: Multi-language code execution with CORRECT class ordering
+// TEST SESSION ROUTES
 // ============================================================================
+
+// Start test session
+app.post('/api/test-session/start', async (req, res) => {
+  try {
+    const { testId, candidateName, candidateEmail } = req.body;
+    const test = await Test.findOne({ testId });
+
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    if (!candidateName || !candidateEmail) {
+      return res.status(400).json({ error: 'Name and email are required' });
+    }
+
+    const sessionId = uuidv4();
+    const activeSession = new ActiveSession({
+      sessionId,
+      testId,
+      candidateName,
+      candidateEmail
+    });
+
+    await activeSession.save();
+    console.log('✅ Session started:', sessionId, '-', candidateName);
+
+    // Initialize proctoring cache (for live monitoring only)
+    proctoringCache[sessionId] = {
+      frames: [],
+      alerts: []
+    };
+
+    req.session.testSession = sessionId;
+    res.json({ success: true, sessionId, startTime: activeSession.startTime });
+  } catch (error) {
+    console.error('Error starting session:', error);
+    res.status(500).json({ error: 'Failed to start session' });
+  }
+});
+
+// Save question answer
+app.post('/api/test-session/save-answer', async (req, res) => {
+  try {
+    const sessionId = req.session.testSession || req.body.sessionId;
+    const { questionId, code, language, testResults } = req.body;
+
+    const session = await ActiveSession.findOne({ sessionId });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const existingAnswerIndex = session.answers.findIndex(a => a.questionId === questionId);
+    
+    const answerData = {
+      questionId,
+      code,
+      language: language || 'java',
+      submittedAt: new Date()
+    };
+
+    // Add test results if provided
+    if (testResults) {
+      answerData.visibleTestCasesPassed = testResults.visibleTestCasesPassed || 0;
+      answerData.visibleTestCasesTotal = testResults.visibleTestCasesTotal || 0;
+      answerData.hiddenTestCasesPassed = testResults.hiddenTestCasesPassed || 0;
+      answerData.hiddenTestCasesTotal = testResults.hiddenTestCasesTotal || 0;
+    }
+
+    if (existingAnswerIndex >= 0) {
+      // Update existing answer (overwrite)
+      session.answers[existingAnswerIndex] = answerData;
+    } else {
+      // Add new answer
+      session.answers.push(answerData);
+    }
+
+    await session.save();
+    console.log('✅ Answer saved for question', questionId, '-', session.candidateName);
+
+    res.json({ success: true, message: 'Answer saved successfully' });
+  } catch (error) {
+    console.error('Error saving answer:', error);
+    res.status(500).json({ error: 'Failed to save answer' });
+  }
+});
+
+// Submit entire test
+app.post('/api/test-session/submit', async (req, res) => {
+  try {
+    const sessionId = req.session.testSession || req.body.sessionId;
+    const { answers: clientAnswers } = req.body;
+
+    const session = await ActiveSession.findOne({ sessionId });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const endTime = new Date();
+
+    // Merge client answers with session answers
+    if (clientAnswers) {
+      for (const [qId, answer] of Object.entries(clientAnswers)) {
+        const questionId = parseInt(qId);
+        const existingIndex = session.answers.findIndex(a => a.questionId === questionId);
+        
+        if (existingIndex >= 0) {
+          if (answer.code) {
+            session.answers[existingIndex].code = answer.code;
+            session.answers[existingIndex].language = answer.language || 'java';
+          }
+        } else {
+          session.answers.push({
+            questionId,
+            code: answer.code,
+            language: answer.language || 'java',
+            submittedAt: endTime
+          });
+        }
+      }
+    }
+
+    // Create submission record
+    const submissionId = uuidv4();
+    const submission = new Submission({
+      submissionId,
+      testId: session.testId,
+      candidateName: session.candidateName,
+      candidateEmail: session.candidateEmail,
+      startTime: session.startTime,
+      endTime,
+      submittedAt: endTime,
+      answers: session.answers
+    });
+
+    await submission.save();
+    console.log('✅ Test submitted:', submissionId, '-', session.candidateName);
+
+    // Delete active session
+    await ActiveSession.deleteOne({ sessionId });
+
+    // Clean up proctoring cache
+    delete proctoringCache[sessionId];
+
+    // Notify admin
+    io.to('admin-room').emit('test-submitted', {
+      submissionId,
+      sessionId,
+      candidateName: session.candidateName,
+      candidateEmail: session.candidateEmail
+    });
+
+    res.json({
+      success: true,
+      submissionId,
+      message: 'Test submitted successfully'
+    });
+  } catch (error) {
+    console.error('Error submitting test:', error);
+    res.status(500).json({ error: 'Failed to submit test' });
+  }
+});
+
+// Get all submissions
+app.get('/api/submissions', requireAdmin, async (req, res) => {
+  try {
+    const submissions = await Submission.find()
+      .select('-answers.code') // Don't send full code in list view
+      .sort({ submittedAt: -1 });
+    
+    const submissionList = submissions.map(sub => ({
+      id: sub.submissionId,
+      candidateName: sub.candidateName,
+      candidateEmail: sub.candidateEmail,
+      testId: sub.testId,
+      startTime: sub.startTime,
+      endTime: sub.endTime,
+      submittedAt: sub.submittedAt,
+      answeredQuestions: sub.answers.length,
+      totalVisiblePassed: sub.answers.reduce((sum, a) => sum + (a.visibleTestCasesPassed || 0), 0),
+      totalHiddenPassed: sub.answers.reduce((sum, a) => sum + (a.hiddenTestCasesPassed || 0), 0)
+    }));
+    
+    res.json(submissionList);
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+// Get single submission (with full code)
+app.get('/api/submissions/:id', requireAdmin, async (req, res) => {
+  try {
+    const submission = await Submission.findOne({ submissionId: req.params.id });
+    if (submission) {
+      res.json(submission);
+    } else {
+      res.status(404).json({ error: 'Submission not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching submission:', error);
+    res.status(500).json({ error: 'Failed to fetch submission' });
+  }
+});
+
+// ============================================================================
+// CODE EXECUTION
+// ============================================================================
+
 app.post('/api/execute', async (req, res) => {
-  const { solutionCode, mainTemplate, testCases, language = 'java', questionId } = req.body;
+  const { solutionCode, mainTemplate, testCases, language = 'java', questionId, sessionId } = req.body;
 
   if (!solutionCode || !testCases || testCases.length === 0) {
     return res.status(400).json({
@@ -318,17 +536,19 @@ app.post('/api/execute', async (req, res) => {
   }
 
   try {
-    // Get hidden test cases
-    const sessionId = req.session.testSession || req.body.sessionId;
-    const session = activeTests[sessionId];
-
+    const activeSessionId = req.session.testSession || sessionId;
+    
+    // Get hidden test cases from database
     let hiddenTestCases = [];
-    if (session && session.testId && questionId) {
-      const test = tests[session.testId];
-      if (test && test.questions) {
-        const question = test.questions.find(q => q.id === questionId);
-        if (question && question.hiddenTestCases) {
-          hiddenTestCases = question.hiddenTestCases;
+    if (activeSessionId && questionId) {
+      const session = await ActiveSession.findOne({ sessionId: activeSessionId });
+      if (session && session.testId) {
+        const test = await Test.findOne({ testId: session.testId });
+        if (test && test.questions) {
+          const question = test.questions.find(q => q.id === questionId);
+          if (question && question.hiddenTestCases) {
+            hiddenTestCases = question.hiddenTestCases;
+          }
         }
       }
     }
@@ -337,38 +557,27 @@ app.post('/api/execute', async (req, res) => {
     const results = [];
 
     console.log(`\n🔄 Executing ${allTestCases.length} test cases (${testCases.length} visible, ${hiddenTestCases.length} hidden)`);
-    console.log(`📝 Language: ${language}`);
 
-    // Language-specific execution
+    // Execute code (Java only for now - can add Python/JS later)
     if (language === 'java') {
-      // ===== JAVA EXECUTION - FIXED CLASS ORDERING =====
       for (let i = 0; i < allTestCases.length; i++) {
         const testCase = allTestCases[i];
 
-        // Step 1: Extract ALL imports from both solution and main template
         let allImports = new Set();
-        
-        // Get imports from main template
         const mainTemplateImports = (mainTemplate || '').match(/^import\s+.*?;\s*$/gm) || [];
         mainTemplateImports.forEach(imp => allImports.add(imp.trim()));
-        
-        // Get imports from solution code
         const solutionImports = solutionCode.match(/^import\s+.*?;\s*$/gm) || [];
         solutionImports.forEach(imp => allImports.add(imp.trim()));
-        
         const importsBlock = Array.from(allImports).join('\n') + (allImports.size > 0 ? '\n\n' : '');
 
-        // Step 2: Clean solution code - remove imports and any class/main declarations
         let cleanSolutionCode = solutionCode
-          .replace(/^import\s+.*?;\s*$/gm, '')  // Remove imports
-          .replace(/public\s+class\s+Solution\s*\{/g, '')  // Remove public class Solution {
-          .replace(/class\s+Solution\s*\{/g, '')  // Remove class Solution {
-          .replace(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{[\s\S]*?\n\s*\}/gm, '')  // Remove any main methods
+          .replace(/^import\s+.*?;\s*$/gm, '')
+          .replace(/public\s+class\s+Solution\s*\{/g, '')
+          .replace(/class\s+Solution\s*\{/g, '')
+          .replace(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{[\s\S]*?\n\s*\}/gm, '')
           .trim();
         
-        // Remove trailing closing brace if it's a leftover from class wrapper
         if (cleanSolutionCode.endsWith('}')) {
-          // Count braces to see if we have an extra one
           const openBraces = (cleanSolutionCode.match(/\{/g) || []).length;
           const closeBraces = (cleanSolutionCode.match(/\}/g) || []).length;
           if (closeBraces > openBraces) {
@@ -376,67 +585,45 @@ app.post('/api/execute', async (req, res) => {
           }
         }
         
-        // Validation: Check if solution code is essentially empty
         if (!cleanSolutionCode || cleanSolutionCode === '' || cleanSolutionCode === '}') {
-          console.log(`   ❌ ERROR: Solution code is empty or invalid!`);
-          console.log(`   Original solution code: "${solutionCode}"`);
-          console.log(`   Cleaned solution code: "${cleanSolutionCode}"`);
-          
           results.push({
             testCase: i + 1,
             input: testCase.input,
             expectedOutput: testCase.output,
             actualOutput: '',
             passed: false,
-            error: 'Student solution code is empty! Please write your solution in the code editor.',
+            error: 'Solution code is empty!',
             executionTime: 0,
             status: 'error'
           });
           continue;
         }
 
-        // Step 3: Clean main template - remove imports and ensure it's just the main method body
         let cleanMainTemplate = (mainTemplate || '')
-          .replace(/^import\s+.*?;\s*$/gm, '')  // Remove imports
-          .replace(/public\s+class\s+Main\s*\{/g, '')  // Remove public class Main {
-          .replace(/class\s+Main\s*\{/g, '')  // Remove class Main {
+          .replace(/^import\s+.*?;\s*$/gm, '')
+          .replace(/public\s+class\s+Main\s*\{/g, '')
+          .replace(/class\s+Main\s*\{/g, '')
           .trim();
         
-        // If main template already has main method wrapper, extract just the body
         const mainMethodMatch = cleanMainTemplate.match(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{([\s\S]*)\}\s*$/);
         if (mainMethodMatch) {
           cleanMainTemplate = mainMethodMatch[1].trim();
         }
         
-        // Remove trailing closing braces
         while (cleanMainTemplate.endsWith('}') && !cleanMainTemplate.includes('{')) {
           cleanMainTemplate = cleanMainTemplate.substring(0, cleanMainTemplate.lastIndexOf('}')).trim();
         }
 
-        // Step 4: Replace {{input}} placeholder in main template
         let processedInput = testCase.input.trim();
-        
-        if (!processedInput.includes(',') && 
-            !processedInput.includes('[') && 
-            !processedInput.includes('{') &&
-            processedInput.includes(' ')) {
+        if (!processedInput.includes(',') && !processedInput.includes('[') && !processedInput.includes('{') && processedInput.includes(' ')) {
           processedInput = processedInput.split(/\s+/).join(', ');
         }
         
         const mainCodeWithInput = cleanMainTemplate.replace(/\{\{input\}\}/g, processedInput);
 
-        // Step 5: Construct the final Java file - CRITICAL FIX: Main class FIRST!
-        const indentedSolution = cleanSolutionCode
-          .split('\n')
-          .map(line => '    ' + line)
-          .join('\n');
+        const indentedSolution = cleanSolutionCode.split('\n').map(line => '    ' + line).join('\n');
+        const indentedMainCode = mainCodeWithInput.split('\n').map(line => '        ' + line).join('\n');
         
-        const indentedMainCode = mainCodeWithInput
-          .split('\n')
-          .map(line => '        ' + line)
-          .join('\n');
-        
-        // ⭐ CRITICAL FIX: public class Main MUST come FIRST ⭐
         const fullCode = `${importsBlock}public class Main {
     public static void main(String[] args) {
 ${indentedMainCode}
@@ -446,19 +633,6 @@ ${indentedMainCode}
 class Solution {
 ${indentedSolution}
 }`;
-
-        console.log(`\n📌 Test Case ${i + 1}:`);
-        console.log(`   Input: ${testCase.input}`);
-        console.log(`   Expected: ${testCase.output}`);
-
-        // Log the actual code being executed (for debugging first test case only)
-        if (i === 0) {
-          console.log('\n' + '='.repeat(80));
-          console.log('📄 FINAL GENERATED CODE (FIXED CLASS ORDER):');
-          console.log('='.repeat(80));
-          console.log(fullCode);
-          console.log('='.repeat(80) + '\n');
-        }
 
         const startTime = Date.now();
 
@@ -479,8 +653,6 @@ ${indentedSolution}
           const executionTime = Date.now() - startTime;
 
           if (result.compile && result.compile.stderr) {
-            console.log(`   ❌ Compilation Error`);
-            console.log(result.compile.stderr);
             results.push({
               testCase: i + 1,
               input: testCase.input,
@@ -498,8 +670,6 @@ ${indentedSolution}
           const stderr = result.run?.stderr || '';
           const passed = compareOutputs(output, testCase.output);
 
-          console.log(`   ${passed ? '✅' : '❌'} Got: ${output}`);
-
           results.push({
             testCase: i + 1,
             input: testCase.input,
@@ -512,129 +682,6 @@ ${indentedSolution}
           });
 
         } catch (error) {
-          console.log(`   ❌ Error: ${error.message}`);
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: '',
-            passed: false,
-            error: error.message,
-            executionTime: 0,
-            status: 'error'
-          });
-        }
-      }
-    }
-    else if (language === 'python') {
-      // ===== PYTHON EXECUTION =====
-      for (let i = 0; i < allTestCases.length; i++) {
-        const testCase = allTestCases[i];
-
-        let mainCode = mainTemplate || `result = solution({{input}})
-print(result)`;
-        mainCode = mainCode.replace(/\{\{input\}\}/g, testCase.input);
-
-        const pythonCode = `${solutionCode}\n\n${mainCode}`;
-
-        console.log(`\n📌 Test Case ${i + 1}:`);
-        console.log(`   Input: ${testCase.input}`);
-
-        const startTime = Date.now();
-
-        try {
-          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              language: 'python',
-              version: '3.10.0',
-              files: [{ name: 'solution.py', content: pythonCode }]
-            })
-          });
-
-          const result = await response.json();
-          const executionTime = Date.now() - startTime;
-          const output = (result.run?.stdout || '').trim();
-          const stderr = result.run?.stderr || '';
-          const passed = compareOutputs(output, testCase.output);
-
-          console.log(`   ${passed ? '✅' : '❌'} Got: ${output}`);
-
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: output,
-            passed,
-            error: stderr || null,
-            executionTime,
-            status: passed ? 'passed' : 'failed'
-          });
-
-        } catch (error) {
-          console.log(`   ❌ Error: ${error.message}`);
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: '',
-            passed: false,
-            error: error.message,
-            executionTime: 0,
-            status: 'error'
-          });
-        }
-      }
-
-    } else if (language === 'javascript') {
-      // ===== JAVASCRIPT EXECUTION =====
-      for (let i = 0; i < allTestCases.length; i++) {
-        const testCase = allTestCases[i];
-
-        let mainCode = mainTemplate || `const result = solution({{input}});
-console.log(JSON.stringify(result));`;
-        mainCode = mainCode.replace(/\{\{input\}\}/g, testCase.input);
-
-        const jsCode = `${solutionCode}\n\n${mainCode}`;
-
-        console.log(`\n📌 Test Case ${i + 1}:`);
-        console.log(`   Input: ${testCase.input}`);
-
-        const startTime = Date.now();
-
-        try {
-          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              language: 'javascript',
-              version: '18.15.0',
-              files: [{ name: 'solution.js', content: jsCode }]
-            })
-          });
-
-          const result = await response.json();
-          const executionTime = Date.now() - startTime;
-          const output = (result.run?.stdout || '').trim();
-          const stderr = result.run?.stderr || '';
-          const passed = compareOutputs(output, testCase.output);
-
-          console.log(`   ${passed ? '✅' : '❌'} Got: ${output}`);
-
-          results.push({
-            testCase: i + 1,
-            input: testCase.input,
-            expectedOutput: testCase.output,
-            actualOutput: output,
-            passed,
-            error: stderr || null,
-            executionTime,
-            status: passed ? 'passed' : 'failed'
-          });
-
-        } catch (error) {
-          console.log(`   ❌ Error: ${error.message}`);
           results.push({
             testCase: i + 1,
             input: testCase.input,
@@ -650,7 +697,7 @@ console.log(JSON.stringify(result));`;
     } else {
       return res.status(400).json({
         success: false,
-        error: `Unsupported language: ${language}`
+        error: `Language ${language} not yet supported. Only Java is available.`
       });
     }
 
@@ -662,7 +709,7 @@ console.log(JSON.stringify(result));`;
     const hiddenPassed = hiddenResults.filter(r => r.passed).length;
     const totalPassed = visiblePassed + hiddenPassed;
 
-    console.log(`\n✅ Results: ${totalPassed}/${results.length} passed (${visiblePassed}/${testCases.length} visible, ${hiddenPassed}/${hiddenTestCases.length} hidden)\n`);
+    console.log(`✅ Results: ${totalPassed}/${results.length} passed (${visiblePassed}/${testCases.length} visible, ${hiddenPassed}/${hiddenTestCases.length} hidden)`);
 
     res.json({
       success: true,
@@ -675,7 +722,9 @@ console.log(JSON.stringify(result));`;
         allPassed: totalPassed === results.length,
         percentage: results.length > 0 ? ((totalPassed / results.length) * 100).toFixed(2) : 0,
         visiblePassed,
-        hiddenPassed
+        visibleTotal: testCases.length,
+        hiddenPassed,
+        hiddenTotal: hiddenTestCases.length
       }
     });
 
@@ -689,39 +738,38 @@ console.log(JSON.stringify(result));`;
   }
 });
 
-// Socket.IO for real-time monitoring
+// ============================================================================
+// SOCKET.IO - REAL-TIME MONITORING (proctoring in memory only, not saved)
+// ============================================================================
+
 io.on('connection', (socket) => {
   console.log('✅ Client connected:', socket.id);
 
-  socket.on('join-monitoring', (data) => {
+  socket.on('join-monitoring', async (data) => {
     if (data.role === 'admin') {
       socket.join('admin-room');
-
-      const activeSessions = Object.keys(activeTests)
-        .filter(sessionId => activeTests[sessionId].status === 'in_progress')
-        .map(sessionId => ({
-          sessionId,
-          session: {
-            candidateName: activeTests[sessionId].candidateName,
-            candidateEmail: activeTests[sessionId].candidateEmail,
-            testId: activeTests[sessionId].testId,
-            startTime: activeTests[sessionId].startTime
-          }
-        }));
-
-      socket.emit('active-sessions', activeSessions);
-
+      const activeSessions = await ActiveSession.find();
+      const sessionData = activeSessions.map(session => ({
+        sessionId: session.sessionId,
+        session: {
+          candidateName: session.candidateName,
+          candidateEmail: session.candidateEmail,
+          testId: session.testId,
+          startTime: session.startTime
+        }
+      }));
+      socket.emit('active-sessions', sessionData);
     } else if (data.sessionId) {
       socket.join(`session-${data.sessionId}`);
-
-      if (activeTests[data.sessionId]) {
+      const session = await ActiveSession.findOne({ sessionId: data.sessionId });
+      if (session) {
         io.to('admin-room').emit('student-connected', {
           sessionId: data.sessionId,
           session: {
-            candidateName: activeTests[data.sessionId].candidateName,
-            candidateEmail: activeTests[data.sessionId].candidateEmail,
-            testId: activeTests[data.sessionId].testId,
-            startTime: activeTests[data.sessionId].startTime
+            candidateName: session.candidateName,
+            candidateEmail: session.candidateEmail,
+            testId: session.testId,
+            startTime: session.startTime
           }
         });
       }
@@ -729,16 +777,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('video-frame', (data) => {
-    if (proctoringData[data.sessionId]) {
-      proctoringData[data.sessionId].frames.push({
+    // Store in memory cache for live viewing only
+    if (proctoringCache[data.sessionId]) {
+      proctoringCache[data.sessionId].frames.push({
         frame: data.frame,
         timestamp: new Date().toISOString()
       });
-      if (proctoringData[data.sessionId].frames.length > 50) {
-        proctoringData[data.sessionId].frames.shift();
+      if (proctoringCache[data.sessionId].frames.length > 20) {
+        proctoringCache[data.sessionId].frames.shift();
       }
     }
-
+    // Send to admin for live monitoring
     io.to('admin-room').emit('student-video-frame', {
       sessionId: data.sessionId,
       frame: data.frame,
@@ -747,44 +796,25 @@ io.on('connection', (socket) => {
   });
 
   socket.on('code-update', (data) => {
-    const sessionId = data.sessionId;
-    if (proctoringData[sessionId]) {
-      proctoringData[sessionId].codeSnapshots.push({
-        questionId: data.questionId,
-        code: data.code,
-        timestamp: new Date().toISOString()
-      });
-    }
-
+    // Just forward to admin for live monitoring (not saved)
     io.to('admin-room').emit('student-code-update', {
       sessionId: data.sessionId,
       code: data.code,
       questionId: data.questionId,
-      timestamp: new Date().toISOString(),
-      candidateName: activeTests[sessionId]?.candidateName
+      timestamp: new Date().toISOString()
     });
   });
 
   socket.on('proctoring-alert', (data) => {
-    const sessionId = data.sessionId;
-
-    if (activeTests[sessionId]) {
-      activeTests[sessionId].violations.push(data.alert);
-
-      if (data.alert.type === 'tab_switch') {
-        activeTests[sessionId].tabSwitches = (activeTests[sessionId].tabSwitches || 0) + 1;
-      }
+    // Store in memory cache for live viewing only
+    if (proctoringCache[data.sessionId]) {
+      proctoringCache[data.sessionId].alerts.push(data.alert);
     }
-
-    if (proctoringData[sessionId]) {
-      proctoringData[sessionId].alerts.push(data.alert);
-    }
-
+    // Send to admin for live monitoring
     io.to('admin-room').emit('proctoring-alert', {
       sessionId: data.sessionId,
       alert: data.alert,
-      timestamp: new Date().toISOString(),
-      candidateName: activeTests[data.sessionId]?.candidateName
+      timestamp: new Date().toISOString()
     });
   });
 
@@ -793,7 +823,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// Serve HTML pages
+// ============================================================================
+// SERVE HTML PAGES
+// ============================================================================
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -814,14 +847,26 @@ app.get('/success.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    activeTests: Object.keys(activeTests).length,
-    submissions: Object.keys(submissions).length,
-    activeSessions: Object.values(activeTests).filter(t => t.status === 'in_progress').length
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    const activeSessionsCount = await ActiveSession.countDocuments();
+    const submissionsCount = await Submission.countDocuments();
+    const testsCount = await Test.countDocuments();
+    
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+      activeSessions: activeSessionsCount,
+      totalSubmissions: submissionsCount,
+      totalTests: testsCount
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message
+    });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
@@ -829,7 +874,7 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║      🚀 Coding Test Platform - CLASS ORDERING FIXED! ✅     ║
+║      🚀 Coding Test Platform - FIXED VERSION! ✅            ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -837,17 +882,14 @@ server.listen(PORT, () => {
 🌐 Admin Panel: http://localhost:${PORT}/admin.html
 🔐 Default Credentials: admin / admin123
 
-✅ CRITICAL FIX APPLIED:
-   ⭐ Main class now comes FIRST (before Solution class)
-   ✅ Piston API will correctly find main() method
-   ✅ Code execution will work properly
+✅ WHAT'S SAVED TO MONGODB:
+   📝 Tests (title, questions, test cases)
+   👤 Student info (name, email)
+   💻 Student code (for each question)
+   ⏰ Submission times
+   ✅ Test results (visible/hidden pass counts)
    
-   Generated structure:
-   public class Main {
-       public static void main(String[] args) { ... }
-   }
-   class Solution { ... }
-
-🎯 Ready to execute code correctly!
+💾 Database: ${MONGODB_URI.includes('mongodb+srv') ? 'MongoDB Atlas (Cloud)' : 'Local MongoDB'}
+🎯 Ready to track test submissions!
   `);
 });
