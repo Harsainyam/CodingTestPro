@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coding Test</title>
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Monaco Editor -->
     <link rel="stylesheet" data-name="vs/editor/editor.main"
         href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css">
     <style>
@@ -62,127 +60,102 @@
         }
 
         @keyframes pulse {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.5;
-            }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
-        .status-dot.warning {
-            background: #ffa502;
+        /* Question Navigation Bar */
+        .question-nav {
+            background: white;
+            padding: 12px 30px;
+            border-bottom: 2px solid #e1e8ed;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
-        .status-dot.error {
-            background: #ff4757;
+        .nav-label {
+            font-weight: 600;
+            color: #667eea;
+            margin-right: 10px;
+        }
+
+        .question-number-btn {
+            padding: 10px 20px;
+            border: 2px solid #e1e8ed;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: #666;
+            min-width: 50px;
+        }
+
+        .question-number-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .question-number-btn.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .question-number-btn.answered {
+            border-color: #2ed573;
+            background: #e8f8f1;
+            color: #2ed573;
+        }
+
+        .question-number-btn.answered.active {
+            background: #2ed573;
+            color: white;
         }
 
         .main-container {
             display: flex;
-            height: calc(100vh - 65px);
+            height: calc(100vh - 125px);
         }
 
-        .sidebar {
-            width: 320px;
-            background: #ffffff;
+        /* 30% Description Panel */
+        .description-panel {
+            width: 30%;
+            background: white;
             overflow-y: auto;
             border-right: 2px solid #e1e8ed;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
-            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
         }
 
-        .sidebar-header {
-            padding: 20px;
+        .question-header {
+            padding: 25px;
             background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
             border-bottom: 2px solid #e1e8ed;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
-        .sidebar-header h3 {
-            color: #333;
-            font-size: 1.1em;
-            margin-bottom: 10px;
+        .question-header h2 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1.3em;
         }
 
-        .progress-stats {
+        .question-meta {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             margin-top: 10px;
         }
 
-        .stat-item {
-            flex: 1;
-            text-align: center;
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-
-        .stat-number {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            font-size: 0.75em;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .question-list {
-            padding: 20px;
-        }
-
-        .question-item {
-            background: white;
-            padding: 15px;
-            margin-bottom: 12px;
-            border-radius: 10px;
-            cursor: pointer;
-            border-left: 4px solid #e0e0e0;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        .question-item:hover {
-            border-left-color: #667eea;
-            transform: translateX(5px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-        }
-
-        .question-item.active {
-            border-left-color: #667eea;
-            background: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-        }
-
-        .question-item.answered {
-            border-left-color: #2ed573;
-        }
-
-        .question-number {
-            font-weight: bold;
-            color: #667eea;
-            font-size: 0.85em;
-        }
-
-        .question-title {
-            font-size: 0.95em;
-            color: #333;
-            margin-top: 5px;
-        }
-
-        .question-difficulty {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.75em;
-            margin-top: 8px;
+        .meta-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
         }
 
         .difficulty-easy {
@@ -200,125 +173,60 @@
             color: #ff4757;
         }
 
-        .content-area {
+        .question-content {
+            padding: 25px;
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background: #f8f9fa;
-            min-width: 0;
         }
 
-        /* FIXED: Improved question display with better resizing */
-        .question-display {
-            padding: 30px;
-            background: white;
-            border-bottom: 2px solid #e1e8ed;
-            overflow-y: auto;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            flex-shrink: 0;
-            position: relative;
-            height: 30vh;
-            /* Fixed initial height */
-            min-height: 150px;
-        }
-
-        .question-display h2 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
-
-        .question-display p {
-            color: #555;
+        .question-content p {
             line-height: 1.8;
-            white-space: pre-wrap;
+            color: #555;
             margin-bottom: 20px;
+            white-space: pre-wrap;
         }
 
-        .test-cases-display {
+        .test-cases-section {
             margin-top: 25px;
-            background: #f8f9fa;
             padding: 20px;
+            background: #f8f9fa;
             border-radius: 10px;
-            border: 1px solid #e1e8ed;
+            border-left: 4px solid #667eea;
         }
 
-        .test-cases-display h3 {
+        .test-cases-section h3 {
             color: #2c3e50;
             margin-bottom: 15px;
-            font-size: 1.1em;
+            font-size: 1.05em;
         }
 
-        .test-case-item {
+        .test-case {
             background: white;
             padding: 15px;
-            margin: 12px 0;
+            margin: 10px 0;
             border-radius: 8px;
             border: 1px solid #e1e8ed;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
         }
 
-        .test-case-item strong {
+        .test-case strong {
             color: #667eea;
         }
 
-        .test-case-item code {
+        .test-case code {
             background: #f0f4ff;
-            padding: 2px 8px;
+            padding: 3px 8px;
             border-radius: 4px;
             font-family: 'Courier New', monospace;
             color: #333;
+            display: inline-block;
+            margin: 2px 0;
         }
 
-        /* FIXED: Improved resize handle with better visual feedback */
-        .resize-handle {
-            height: 12px;
-            background: linear-gradient(to bottom, #f5f5f5, #e8e8e8);
-            cursor: ns-resize;
-            position: relative;
-            flex-shrink: 0;
-            border-top: 1px solid #d0d0d0;
-            border-bottom: 1px solid #d0d0d0;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .resize-handle:hover {
-            background: linear-gradient(to bottom, #667eea, #5568d3);
-            height: 14px;
-        }
-
-        .resize-handle::before {
-            content: '⋮';
-            color: #999;
-            font-size: 16px;
-            letter-spacing: 2px;
-            transition: color 0.2s;
-        }
-
-        .resize-handle:hover::before {
-            color: white;
-        }
-
-        .resize-handle.resizing {
-            background: linear-gradient(to bottom, #667eea, #5568d3);
-            height: 14px;
-        }
-
-        .resize-handle.resizing::before {
-            color: white;
-        }
-
-        .editor-container {
-            flex: 1;
+        /* 70% Editor Panel */
+        .editor-panel {
+            width: 70%;
             display: flex;
             flex-direction: column;
             background: #1e1e1e;
-            min-height: 0;
-            position: relative;
         }
 
         .editor-toolbar {
@@ -328,7 +236,6 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #1e1e1e;
-            flex-shrink: 0;
         }
 
         .editor-toolbar select {
@@ -338,7 +245,6 @@
             padding: 8px 15px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 0.9em;
         }
 
         .editor-actions {
@@ -353,13 +259,10 @@
             cursor: pointer;
             font-size: 0.9em;
             font-weight: 600;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            transition: all 0.3s;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
@@ -367,7 +270,6 @@
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            transform: none;
         }
 
         .btn-run {
@@ -375,26 +277,9 @@
             color: white;
         }
 
-        .btn-run:hover:not(:disabled) {
-            background: #26d367;
-        }
-
         .btn-submit {
             background: #667eea;
             color: white;
-        }
-
-        .btn-submit:hover:not(:disabled) {
-            background: #5568d3;
-        }
-
-        .btn-custom {
-            background: #ffa502;
-            color: white;
-        }
-
-        .btn-custom:hover:not(:disabled) {
-            background: #ff9502;
         }
 
         .btn-reset {
@@ -402,45 +287,24 @@
             color: white;
         }
 
-        .btn-reset:hover:not(:disabled) {
-            background: #444;
-        }
-
-        /* FIXED: Better editor wrapper with proper flex sizing */
-        .editor-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            position: relative;
-            overflow: hidden;
-        }
-
         #code-editor {
             flex: 1;
             width: 100%;
-            overflow: hidden;
         }
 
-        /* FIXED: Output panel with fixed initial height */
         .output-panel {
             background: #1e1e1e;
             color: #d4d4d4;
             overflow-y: auto;
             border-top: 2px solid #2d2d30;
-            flex-shrink: 0;
-            height: 25vh;
-            /* Fixed initial height */
-            min-height: 150px;
+            height: 30vh;
+            min-height: 200px;
         }
 
         .output-header {
             background: #2d2d30;
             padding: 12px 20px;
             border-bottom: 1px solid #3e3e42;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             position: sticky;
             top: 0;
             z-index: 10;
@@ -449,21 +313,12 @@
         .output-header h4 {
             color: #d4d4d4;
             font-size: 0.9em;
-            font-weight: 600;
         }
 
         .output-content {
             padding: 20px;
         }
 
-        .output-content pre {
-            margin: 0;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 0.9em;
-            line-height: 1.6;
-        }
-
-        /* Enhanced test results display */
         .test-results-summary {
             background: #2d2d30;
             padding: 20px;
@@ -471,25 +326,6 @@
             border-radius: 8px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-        }
-
-        .summary-section {
-            flex: 1;
-        }
-
-        .summary-title {
-            color: #888;
-            font-size: 0.85em;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .summary-stats {
-            display: flex;
-            gap: 30px;
-            align-items: baseline;
         }
 
         .summary-main {
@@ -497,41 +333,15 @@
             font-weight: bold;
         }
 
-        .summary-main.all-passed {
-            color: #2ed573;
-        }
-
-        .summary-main.some-failed {
-            color: #ffa502;
-        }
-
-        .summary-main.all-failed {
-            color: #ff4757;
-        }
-
-        .summary-detail {
-            font-size: 0.95em;
-            color: #aaa;
-        }
+        .summary-main.all-passed { color: #2ed573; }
+        .summary-main.some-failed { color: #ffa502; }
+        .summary-main.all-failed { color: #ff4757; }
 
         .test-result {
             margin: 15px 0;
             padding: 18px;
             border-radius: 8px;
             border-left: 4px solid;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
         }
 
         .test-result.passed {
@@ -549,26 +359,11 @@
             border-left-color: #667eea;
         }
 
-        .test-result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .test-result-header strong {
-            color: #fff;
-            font-size: 1.05em;
-        }
-
         .test-result-badge {
             padding: 5px 14px;
             border-radius: 12px;
             font-size: 0.8em;
             font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
 
         .badge-passed {
@@ -586,48 +381,6 @@
             color: white;
         }
 
-        .test-details {
-            color: #b0b0b0;
-            font-size: 0.9em;
-            line-height: 1.9;
-        }
-
-        .test-details code {
-            background: #2d2d30;
-            padding: 3px 8px;
-            border-radius: 4px;
-            color: #4ec9b0;
-            font-family: 'Consolas', monospace;
-        }
-
-        .test-details .error-message {
-            color: #ff4757;
-            margin-top: 8px;
-            padding: 10px;
-            background: rgba(255, 71, 87, 0.1);
-            border-radius: 4px;
-            border-left: 3px solid #ff4757;
-        }
-
-        #video-preview {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 220px;
-            height: 165px;
-            border-radius: 12px;
-            border: 3px solid #667eea;
-            object-fit: cover;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            transition: all 0.3s ease;
-        }
-
-        #video-preview:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
-        }
-
         .modal {
             display: none;
             position: fixed;
@@ -639,7 +392,6 @@
             z-index: 2000;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(5px);
         }
 
         .modal.active {
@@ -654,31 +406,11 @@
             width: 90%;
             text-align: center;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: modalSlideIn 0.3s ease;
-        }
-
-        @keyframes modalSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .modal-content h2 {
             margin-bottom: 20px;
             color: #2c3e50;
-            font-size: 1.8em;
-        }
-
-        .modal-content p {
-            color: #666;
-            margin-bottom: 20px;
-            line-height: 1.6;
         }
 
         .modal-content input {
@@ -688,180 +420,41 @@
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 1em;
-            transition: border-color 0.3s;
         }
 
-        .modal-content input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .warning-banner {
-            display: none;
-            background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
-            color: white;
-            padding: 15px 20px;
-            text-align: center;
-            font-weight: bold;
-            box-shadow: 0 2px 10px rgba(255, 71, 87, 0.3);
-            animation: shake 0.5s;
-        }
-
-        @keyframes shake {
-
-            0%,
-            100% {
-                transform: translateX(0);
-            }
-
-            25% {
-                transform: translateX(-10px);
-            }
-
-            75% {
-                transform: translateX(10px);
-            }
-        }
-
-        .warning-banner.active {
-            display: block;
-        }
-
-        .custom-input-overlay {
-            display: none;
+        #video-preview {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 3000;
-            align-items: center;
-            justify-content: center;
+            bottom: 20px;
+            right: 20px;
+            width: 220px;
+            height: 165px;
+            border-radius: 12px;
+            border: 3px solid #667eea;
+            object-fit: cover;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
         }
 
-        .custom-input-overlay.active {
-            display: flex;
-        }
-
-        .custom-input-container {
-            background: #2d2d30;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-        }
-
-        .custom-input-header {
+        .submit-test-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 260px;
+            padding: 15px 30px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 25px 30px;
             color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .custom-input-header h3 {
-            font-size: 1.3em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .close-custom-input {
-            background: rgba(255, 255, 255, 0.2);
             border: none;
-            color: white;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 1.3em;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            z-index: 1000;
             transition: all 0.3s;
         }
 
-        .close-custom-input:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: rotate(90deg);
-        }
-
-        .custom-input-body {
-            padding: 30px;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .input-section {
-            margin-bottom: 25px;
-        }
-
-        .input-section label {
-            display: block;
-            color: #d4d4d4;
-            margin-bottom: 10px;
-            font-weight: 600;
-            font-size: 0.95em;
-        }
-
-        .input-section textarea {
-            width: 100%;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border: 2px solid #3e3e42;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 0.95em;
-            resize: vertical;
-            min-height: 120px;
-            transition: border-color 0.3s;
-        }
-
-        .input-section textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .input-hint {
-            color: #888;
-            font-size: 0.85em;
-            margin-top: 8px;
-            font-style: italic;
-        }
-
-        .custom-input-footer {
-            padding: 20px 30px;
-            background: #252526;
-            border-top: 1px solid #3e3e42;
-            display: flex;
-            gap: 15px;
-            justify-content: flex-end;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .submit-test-section {
-            padding: 20px;
-            border-top: 2px solid #e1e8ed;
-            background: #f8f9fa;
+        .submit-test-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
         }
 
         ::-webkit-scrollbar {
@@ -878,99 +471,16 @@
             border-radius: 5px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-
-        .output-panel::-webkit-scrollbar-track,
-        .sidebar::-webkit-scrollbar-track {
+        .output-panel::-webkit-scrollbar-track {
             background: #2d2d30;
         }
 
-        .output-panel::-webkit-scrollbar-thumb,
-        .sidebar::-webkit-scrollbar-thumb {
+        .output-panel::-webkit-scrollbar-thumb {
             background: #555;
-        }
-
-        /* Function signature display */
-        .function-signature {
-            background: #f0f4ff;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #667eea;
-        }
-
-        .function-signature h4 {
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 0.95em;
-        }
-
-        .function-signature code {
-            display: block;
-            background: white;
-            padding: 12px;
-            border-radius: 4px;
-            font-family: 'Consolas', monospace;
-            color: #2c3e50;
-            border: 1px solid #e0e0e0;
-        }
-
-        .editor-split-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-
-        .editor-section {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-
-        .editor-section-header {
-            background: #2d2d30;
-            padding: 8px 15px;
-            color: #d4d4d4;
-            font-size: 0.85em;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #1e1e1e;
-        }
-
-        .locked-badge {
-            background: #ff4757;
-            color: white;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        #solution-editor {
-            flex: 1;
-            min-height: 200px;
-        }
-
-        #main-editor {
-            flex: 0 0 200px;
-            background: #1e1e1e;
-            opacity: 0.7;
         }
     </style>
 </head>
-
 <body>
-    <div id="warning-banner" class="warning-banner">
-        ⚠️ WARNING: Suspicious activity detected!
-    </div>
-
     <div id="info-modal" class="modal active">
         <div class="modal-content">
             <h2>🎓 Welcome to Your Coding Test</h2>
@@ -986,30 +496,10 @@
     <div id="permissions-modal" class="modal">
         <div class="modal-content">
             <h2>🎥 Enable Camera & Microphone</h2>
-            <p>This test requires camera and microphone access for proctoring purposes.</p>
+            <p>This test requires camera and microphone access for proctoring.</p>
             <button class="btn btn-submit" onclick="requestPermissions()" style="width: 100%; margin-top: 20px;">
                 Enable Access
             </button>
-        </div>
-    </div>
-
-    <div id="custom-input-overlay" class="custom-input-overlay">
-        <div class="custom-input-container">
-            <div class="custom-input-header">
-                <h3><span>⚡</span>Custom Test Input</h3>
-                <button class="close-custom-input" onclick="closeCustomInput()">×</button>
-            </div>
-            <div class="custom-input-body">
-                <div class="input-section">
-                    <label>Enter Your Custom Input:</label>
-                    <textarea id="custom-input-field" placeholder="Example: [2, 7, 11, 15], 9"></textarea>
-                    <div class="input-hint">💡 Enter input as comma-separated values matching function parameters</div>
-                </div>
-            </div>
-            <div class="custom-input-footer">
-                <button class="btn btn-reset" onclick="closeCustomInput()">Cancel</button>
-                <button class="btn btn-run" onclick="executeCustomInput()">▶ Run Code</button>
-            </div>
         </div>
     </div>
 
@@ -1026,109 +516,62 @@
                 <div class="status-dot" id="mic-status"></div>
                 <span>Mic</span>
             </div>
-            <div class="status-indicator">
-                <div class="status-dot" id="focus-status"></div>
-                <span>Focus</span>
-            </div>
             <div class="timer" id="timer">00:00</div>
         </div>
     </div>
 
+    <div class="question-nav">
+        <span class="nav-label">Questions:</span>
+        <div id="question-nav-buttons"></div>
+    </div>
+
     <div class="main-container">
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h3>Questions</h3>
-                <div class="progress-stats">
-                    <div class="stat-item">
-                        <div class="stat-number" id="answered-count">0</div>
-                        <div class="stat-label">Answered</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="total-count">0</div>
-                        <div class="stat-label">Total</div>
-                    </div>
-                </div>
+        <!-- 30% Description Panel -->
+        <div class="description-panel">
+            <div class="question-header">
+                <h2 id="question-title">Select a question to begin</h2>
+                <div class="question-meta" id="question-meta"></div>
             </div>
-            <div class="question-list" id="question-list"></div>
-            <div class="submit-test-section">
-                <button class="btn btn-submit" id="submit-test-btn" onclick="submitTest()" style="width: 100%;">
-                    📤 Submit Test
-                </button>
+            <div class="question-content">
+                <p id="question-description">Choose a question from the navigation bar above to start coding.</p>
+                <div id="test-cases-container"></div>
             </div>
         </div>
 
-        <div class="content-area">
-            <div class="question-display" id="question-display">
-                <h2>Select a question to begin</h2>
-                <p>Choose any question from the sidebar to start coding</p>
+        <!-- 70% Editor Panel -->
+        <div class="editor-panel">
+            <div class="editor-toolbar">
+                <select id="language-select">
+                    <option value="java">Java</option>
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                </select>
+                <div class="editor-actions">
+                    <button class="btn btn-reset" onclick="resetCode()">🔄 Reset</button>
+                    <button class="btn btn-run" id="run-btn" onclick="runCode()">▶ Run Tests</button>
+                    <button class="btn btn-submit" onclick="submitQuestion()">✓ Submit Question</button>
+                </div>
             </div>
-
-            <div class="resize-handle" id="question-resize-handle"></div>
-
-            <div class="editor-container">
-                <div class="editor-toolbar">
-                    <select id="language-select" onchange="changeLanguage()">
-                        <option value="javascript">JavaScript</option>
-                        <option value="python">Python</option>
-                        <option value="java">Java</option>
-                        <option value="cpp">C++</option>
-                        <option value="csharp">C#</option>
-                    </select>
-                    <div class="editor-actions">
-                        <button class="btn btn-reset" onclick="resetCode()" title="Reset to template">
-                            🔄 Reset
-                        </button>
-                        <button class="btn btn-custom" onclick="openCustomInput()">
-                            ⚡ Custom Input
-                        </button>
-                        <button class="btn btn-run" id="run-btn" onclick="runCode()">
-                            ▶ Run Tests
-                        </button>
-                        <button class="btn btn-submit" onclick="submitQuestion()">
-                            ✓ Submit Question
-                        </button>
-                    </div>
+            <div id="code-editor"></div>
+            <div class="output-panel">
+                <div class="output-header">
+                    <h4>📊 Test Results</h4>
                 </div>
-                <div class="editor-wrapper">
-                    <div class="editor-split-container">
-                        <!-- Student's Solution Code (Editable) -->
-                        <div class="editor-section" style="flex: 1;">
-                            <div class="editor-section-header">
-                                <span>✏️ Your Solution (Editable)</span>
-                                <span style="color: #2ed573; font-size: 0.75em;">● ACTIVE</span>
-                            </div>
-                            <div id="solution-editor"></div>
-                        </div>
-
-                        <!-- Main Function (Locked) -->
-                        <div class="editor-section" style="flex: 0 0 200px;">
-                            <div class="editor-section-header" style="background: #3d3d3d;">
-                                <span>🔒 Main Function (Locked)</span>
-                                <span class="locked-badge">🔒 READ-ONLY</span>
-                            </div>
-                            <div id="main-editor"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="resize-handle" id="editor-resize-handle"></div>
-                <div class="output-panel" id="output-panel-container">
-                    <div class="output-header">
-                        <h4>📊 Test Results</h4>
-                        <span style="font-size: 0.85em; color: #888;">Run your code to see results</span>
-                    </div>
-                    <div class="output-content" id="output-panel">
-                        <pre>Click "Run Tests" to execute your code against test cases...</pre>
-                    </div>
+                <div class="output-content" id="output-panel">
+                    <pre>Click "Run Tests" to execute your code...</pre>
                 </div>
             </div>
         </div>
     </div>
+
+    <button class="submit-test-btn" id="submit-test-btn" onclick="submitTest()">
+        📤 Submit Test
+    </button>
 
     <video id="video-preview" autoplay muted></video>
     <canvas id="ai-canvas" style="display: none;"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
-
     <script>
         let socket;
         let testData = null;
@@ -1142,138 +585,28 @@
         let tabSwitchCount = 0;
         let isTestActive = false;
         let editor = null;
-        let editorInitialized = false;
 
         const urlParams = new URLSearchParams(window.location.search);
         const testId = urlParams.get('id');
-        let solutionEditor = null; // Student's code
-        let mainEditor = null; // Locked main function
-
-        // FIXED: Improved resize functionality with debouncing
-        function initResizeHandles() {
-            const questionHandle = document.getElementById('question-resize-handle');
-            const editorHandle = document.getElementById('editor-resize-handle');
-            const questionDisplay = document.querySelector('.question-display');
-            const outputPanel = document.getElementById('output-panel-container');
-
-            let isResizing = false;
-            let currentHandle = null;
-            let resizeTimeout = null;
-
-            function startResize(e, handle) {
-                isResizing = true;
-                currentHandle = handle;
-                handle.classList.add('resizing');
-                document.body.style.cursor = 'ns-resize';
-                document.body.style.userSelect = 'none';
-                e.preventDefault();
-            }
-
-            function doResize(e) {
-                if (!isResizing) return;
-
-                if (currentHandle === questionHandle) {
-                    const containerTop = questionDisplay.getBoundingClientRect().top;
-                    const newHeight = e.clientY - containerTop;
-                    const minHeight = 150;
-                    const maxHeight = window.innerHeight * 0.6;
-
-                    if (newHeight >= minHeight && newHeight <= maxHeight) {
-                        questionDisplay.style.height = newHeight + 'px';
-
-                        // Debounced layout update
-                        clearTimeout(resizeTimeout);
-                        resizeTimeout = setTimeout(() => {
-                            if (editor) editor.layout();
-                        }, 50);
-                    }
-                } else if (currentHandle === editorHandle) {
-                    const containerBottom = window.innerHeight;
-                    const newHeight = containerBottom - e.clientY - 65; // Account for header
-                    const minHeight = 150;
-                    const maxHeight = window.innerHeight * 0.6;
-
-                    if (newHeight >= minHeight && newHeight <= maxHeight) {
-                        outputPanel.style.height = newHeight + 'px';
-
-                        // Debounced layout update
-                        clearTimeout(resizeTimeout);
-                        resizeTimeout = setTimeout(() => {
-                            if (editor) editor.layout();
-                        }, 50);
-                    }
-                }
-            }
-
-            function stopResize() {
-                if (currentHandle) {
-                    currentHandle.classList.remove('resizing');
-                }
-                isResizing = false;
-                currentHandle = null;
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
-
-                // Final layout update
-                if (editor) {
-                    setTimeout(() => editor.layout(), 100);
-                }
-            }
-
-            questionHandle.addEventListener('mousedown', (e) => startResize(e, questionHandle));
-            editorHandle.addEventListener('mousedown', (e) => startResize(e, editorHandle));
-            document.addEventListener('mousemove', doResize);
-            document.addEventListener('mouseup', stopResize);
-        }
 
         function initMonacoEditor() {
-            if (editorInitialized) return;
-
             require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
-
             require(['vs/editor/editor.main'], function () {
-                // Student's editable solution editor
-                solutionEditor = monaco.editor.create(document.getElementById('solution-editor'), {
-                    value: '// Write your solution here\n',
+                editor = monaco.editor.create(document.getElementById('code-editor'), {
+                    value: '// Write your code here\n',
                     language: 'java',
                     theme: 'vs-dark',
                     automaticLayout: true,
                     fontSize: 14,
-                    minimap: { enabled: false }
+                    minimap: { enabled: true }
                 });
 
-                // Locked main function editor
-                mainEditor = monaco.editor.create(document.getElementById('main-editor'), {
-                    value: '// Main function will appear here\n',
-                    language: 'java',
-                    theme: 'vs-dark',
-                    automaticLayout: true,
-                    fontSize: 13,
-                    readOnly: true, // LOCKED
-                    minimap: { enabled: false },
-                    lineNumbers: 'off',
-                    glyphMargin: false,
-                    folding: false,
-                    lineDecorationsWidth: 0,
-                    lineNumbersMinChars: 0,
-                    renderLineHighlight: 'none',
-                    scrollbar: {
-                        vertical: 'hidden',
-                        horizontal: 'hidden'
-                    }
-                });
-
-                // Set gray background for locked editor
-                mainEditor.getDomNode().style.opacity = '0.7';
-
-                editorInitialized = true;
-
-                solutionEditor.onDidChangeModelContent(() => {
+                editor.onDidChangeModelContent(() => {
                     if (socket && isTestActive && testData && currentQuestionIndex < testData.questions.length) {
                         const question = testData.questions[currentQuestionIndex];
                         answers[question.id] = {
                             questionId: question.id,
-                            code: solutionEditor.getValue(),
+                            code: editor.getValue(),
                             language: document.getElementById('language-select').value,
                             lastModified: new Date().toISOString()
                         };
@@ -1281,7 +614,7 @@
                         socket.emit('code-update', {
                             sessionId,
                             questionId: question.id,
-                            code: solutionEditor.getValue()
+                            code: editor.getValue()
                         });
                     }
                 });
@@ -1290,86 +623,242 @@
 
         async function loadTest() {
             try {
-                if (!testId) {
-                    throw new Error('No test ID provided');
-                }
-
                 const response = await fetch(`/api/tests/${testId}`);
-
-                if (!response.ok) {
-                    throw new Error('Test not found');
-                }
-
+                if (!response.ok) throw new Error('Test not found');
+                
                 testData = await response.json();
-
-                console.log('Test loaded:', testData);
                 document.getElementById('test-title').textContent = testData.title;
-                document.getElementById('total-count').textContent = testData.questions.length;
-
-                renderQuestionList();
-
+                renderQuestionNav();
             } catch (error) {
-                console.error('Error loading test:', error);
                 alert('Error loading test: ' + error.message);
             }
         }
 
-        function renderQuestionList() {
-            const questionList = document.getElementById('question-list');
-            questionList.innerHTML = '';
-
+        function renderQuestionNav() {
+            const container = document.getElementById('question-nav-buttons');
+            container.innerHTML = '';
+            
             testData.questions.forEach((q, index) => {
-                const div = document.createElement('div');
-                div.className = 'question-item';
-                div.innerHTML = `
-                    <div class="question-number">Question ${index + 1}</div>
-                    <div class="question-title">${q.title}</div>
-                    <span class="question-difficulty difficulty-${q.difficulty || 'easy'}">${(q.difficulty || 'easy').toUpperCase()}</span>
-                `;
-                div.onclick = () => loadQuestion(index);
-                questionList.appendChild(div);
+                const btn = document.createElement('button');
+                btn.className = 'question-number-btn';
+                btn.textContent = index + 1;
+                btn.onclick = () => loadQuestion(index);
+                container.appendChild(btn);
             });
+        }
+
+        function loadQuestion(index) {
+            if (!testData || !testData.questions[index]) return;
+            
+            currentQuestionIndex = index;
+            const question = testData.questions[index];
+
+            // Update navigation
+            document.querySelectorAll('.question-number-btn').forEach((btn, i) => {
+                btn.classList.remove('active');
+                if (i === index) btn.classList.add('active');
+                if (answers[testData.questions[i].id]) btn.classList.add('answered');
+            });
+
+            // Update description
+            document.getElementById('question-title').textContent = `Question ${index + 1}: ${question.title}`;
+            document.getElementById('question-description').textContent = question.description;
+            
+            const metaDiv = document.getElementById('question-meta');
+            metaDiv.innerHTML = `<span class="meta-badge difficulty-${question.difficulty || 'easy'}">${(question.difficulty || 'easy').toUpperCase()}</span>`;
+
+            // Show test cases
+            const testCasesContainer = document.getElementById('test-cases-container');
+            testCasesContainer.innerHTML = `
+                <div class="test-cases-section">
+                    <h3>📋 Example Test Cases:</h3>
+                    ${question.visibleTestCases.map((tc, i) => `
+                        <div class="test-case">
+                            <strong>Test Case ${i + 1}:</strong><br>
+                            <strong>Input:</strong> <code>${tc.input}</code><br>
+                            <strong>Expected Output:</strong> <code>${tc.output}</code>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Load code
+            if (editor) {
+                const code = answers[question.id]?.code || question.template || '// Write your code here\n';
+                editor.setValue(code);
+            }
+
+            // Clear output
+            document.getElementById('output-panel').innerHTML = '<pre>Click "Run Tests" to execute your code...</pre>';
+        }
+
+        async function runCode() {
+            const question = testData.questions[currentQuestionIndex];
+            const code = editor.getValue();
+            const mainTemplate = question.mainTemplate;
+
+            const runBtn = document.getElementById('run-btn');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '⏳ Running...';
+
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        solutionCode: code,
+                        mainTemplate: mainTemplate,
+                        testCases: question.visibleTestCases,
+                        language: 'java',
+                        questionId: question.id,
+                        sessionId: sessionId
+                    })
+                });
+
+                const result = await response.json();
+                displayTestResults(result);
+            } catch (error) {
+                document.getElementById('output-panel').innerHTML = `<div class="test-result failed"><strong>❌ Error:</strong> ${error.message}</div>`;
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = '▶ Run Tests';
+            }
+        }
+
+        function displayTestResults(result) {
+            const summary = result.summary;
+            let summaryClass = summary.passed === summary.total ? 'all-passed' : 
+                              summary.passed === 0 ? 'all-failed' : 'some-failed';
+
+            let html = `
+                <div class="test-results-summary">
+                    <div>
+                        <div class="summary-main ${summaryClass}">${summary.passed}/${summary.total}</div>
+                        <div style="color: #aaa;">Tests Passed</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: #2ed573;">✓ ${summary.visiblePassed || 0} Visible</div>
+                        <div style="color: #667eea;">✓ ${summary.hiddenPassed || 0} Hidden</div>
+                    </div>
+                </div>
+            `;
+
+            result.visibleResults.forEach(r => {
+                html += `
+                    <div class="test-result ${r.passed ? 'passed' : 'failed'}">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <strong>Test Case ${r.testCase}</strong>
+                            <span class="test-result-badge badge-${r.passed ? 'passed' : 'failed'}">
+                                ${r.passed ? '✓ PASSED' : '✗ FAILED'}
+                            </span>
+                        </div>
+                        <div style="color: #b0b0b0; font-size: 0.9em;">
+                            <strong>Input:</strong> <code>${r.input}</code><br>
+                            <strong>Expected:</strong> <code>${r.expectedOutput}</code><br>
+                            <strong>Got:</strong> <code>${r.actualOutput || '(no output)'}</code>
+                            ${r.error ? `<br><div style="color: #ff4757; margin-top: 8px;">${r.error}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (result.hiddenResults) {
+                result.hiddenResults.forEach(r => {
+                    html += `
+                        <div class="test-result hidden ${r.passed ? 'passed' : 'failed'}">
+                            <div style="display: flex; justify-content: space-between;">
+                                <strong>Hidden Test ${r.testCase - result.visibleResults.length}</strong>
+                                <span class="test-result-badge badge-${r.passed ? 'passed' : 'failed'}">
+                                    ${r.passed ? '✓ PASSED' : '✗ FAILED'}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            document.getElementById('output-panel').innerHTML = html;
+        }
+
+        function resetCode() {
+            if (confirm('Reset to template?')) {
+                const question = testData.questions[currentQuestionIndex];
+                if (editor && question.template) {
+                    editor.setValue(question.template);
+                }
+            }
+        }
+
+        function submitQuestion() {
+            const question = testData.questions[currentQuestionIndex];
+            answers[question.id] = {
+                questionId: question.id,
+                code: editor.getValue(),
+                language: 'java',
+                submittedAt: new Date().toISOString()
+            };
+
+            document.querySelectorAll('.question-number-btn')[currentQuestionIndex].classList.add('answered');
+            alert('✓ Question submitted!');
+
+            if (currentQuestionIndex < testData.questions.length - 1) {
+                loadQuestion(currentQuestionIndex + 1);
+            }
+        }
+
+        async function submitTest() {
+            if (!confirm('Submit your test?')) return;
+
+            const btn = document.getElementById('submit-test-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Submitting...';
+            
+            // Stop proctoring
+            isTestActive = false;
+            clearInterval(timerInterval);
+            clearInterval(aiInterval);
+            
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                const response = await fetch('/api/test-session/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, answers })
+                });
+
+                const result = await response.json();
+                window.location.href = `/success.html?submission=${result.submissionId}`;
+            } catch (error) {
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = '📤 Submit Test';
+                isTestActive = true;
+            }
         }
 
         async function startTest() {
             const name = document.getElementById('candidate-name').value.trim();
             const email = document.getElementById('candidate-email').value.trim();
 
-            if (!name || !email) {
-                alert('Please enter your name and email');
-                return;
-            }
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                alert('Please enter a valid email address');
-                return;
-            }
+            if (!name || !email) return alert('Please enter name and email');
 
             try {
                 const response = await fetch('/api/test-session/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        testId,
-                        candidateName: name,
-                        candidateEmail: email
-                    })
+                    body: JSON.stringify({ testId, candidateName: name, candidateEmail: email })
                 });
-
-                if (!response.ok) {
-                    throw new Error('Failed to start test session');
-                }
 
                 const data = await response.json();
                 sessionId = data.sessionId;
 
                 document.getElementById('info-modal').classList.remove('active');
                 document.getElementById('permissions-modal').classList.add('active');
-
             } catch (error) {
-                console.error('Error starting test:', error);
-                alert('Error starting test: ' + error.message);
+                alert('Error: ' + error.message);
             }
         }
 
@@ -1383,490 +872,29 @@
                 document.getElementById('video-preview').srcObject = videoStream;
                 document.getElementById('camera-status').style.background = '#2ed573';
                 document.getElementById('mic-status').style.background = '#2ed573';
-
             } catch (error) {
-                console.error('Camera access error:', error);
-                if (!confirm('Camera access denied. Continue without proctoring?')) {
-                    return;
-                }
+                if (!confirm('Camera denied. Continue without proctoring?')) return;
             }
 
             document.getElementById('permissions-modal').classList.remove('active');
 
-            try {
-                socket = io();
-                socket.emit('join-monitoring', { sessionId });
-            } catch (e) {
-                console.log('Socket.IO not available');
-            }
+            socket = io();
+            socket.emit('join-monitoring', { sessionId });
 
-            if (testData && testData.duration) {
-                timeRemaining = testData.duration * 60;
-            } else {
-                timeRemaining = 3600;
-            }
-
+            timeRemaining = (testData?.duration || 60) * 60;
             isTestActive = true;
             startTimer();
             loadQuestion(0);
-
+            
+            // Start AI proctoring
             if (videoStream) {
                 startProctoring();
             }
-
+            
+            // Setup tab detection
             setupTabDetection();
         }
-
-        function startTimer() {
-            const timerElement = document.getElementById('timer');
-
-            if (timerInterval) {
-                clearInterval(timerInterval);
-            }
-
-            updateTimerDisplay();
-
-            timerInterval = setInterval(() => {
-                if (!isTestActive) {
-                    clearInterval(timerInterval);
-                    return;
-                }
-
-                timeRemaining--;
-                updateTimerDisplay();
-
-                if (timeRemaining <= 0) {
-                    clearInterval(timerInterval);
-                    forceSubmitTest();
-                }
-            }, 1000);
-        }
-
-        function updateTimerDisplay() {
-            const timerElement = document.getElementById('timer');
-
-            if (timeRemaining < 0) {
-                timeRemaining = 0;
-            }
-
-            const minutes = Math.floor(timeRemaining / 60);
-            const seconds = timeRemaining % 60;
-            timerElement.textContent =
-                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-            if (timeRemaining < 300) {
-                timerElement.style.color = '#ff4757';
-            } else if (timeRemaining < 600) {
-                timerElement.style.color = '#ffa502';
-            } else {
-                timerElement.style.color = 'white';
-            }
-        }
-
-        async function forceSubmitTest() {
-            console.log('Time expired - forcing submission');
-
-            const submitBtn = document.getElementById('submit-test-btn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ Auto-Submitting...';
-
-            isTestActive = false;
-            clearInterval(timerInterval);
-            clearInterval(aiInterval);
-
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-            }
-
-            try {
-                const response = await fetch('/api/test-session/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sessionId,
-                        answers,
-                        autoSubmitted: true
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to submit test');
-                }
-
-                const result = await response.json();
-                window.location.href = `/success.html?submission=${result.submissionId}&auto=true`;
-
-            } catch (error) {
-                console.error('Error submitting test:', error);
-                alert('Failed to submit test. Please contact administrator.');
-            }
-        }
-
-        function loadQuestion(index) {
-            if (!testData || !testData.questions[index]) return;
-
-            currentQuestionIndex = index;
-            const question = testData.questions[index];
-
-            // Update sidebar
-            document.querySelectorAll('.question-item').forEach((item, i) => {
-                item.classList.remove('active');
-                if (i === index) item.classList.add('active');
-            });
-
-            // Update question display
-            const display = document.getElementById('question-display');
-            display.innerHTML = `
-        <h2>Question ${index + 1}: ${question.title}</h2>
-        <p>${question.description}</p>
-        <div class="test-cases-display">
-            <h3>📋 Example Test Cases:</h3>
-            ${question.visibleTestCases.map((tc, i) => `
-                <div class="test-case-item">
-                    <strong>Test Case ${i + 1}:</strong><br>
-                    <strong>Input:</strong> <code>${tc.input}</code><br>
-                    <strong>Expected Output:</strong> <code>${tc.output}</code>
-                </div>
-            `).join('')}
-        </div>
-    `;
-
-            // Load student code
-            if (solutionEditor) {
-                const code = answers[question.id]?.code || question.template || '// Write your solution here\n';
-                solutionEditor.setValue(code);
-            }
-
-            // Load LOCKED main function
-            if (mainEditor && question.mainTemplate) {
-                mainEditor.setValue(question.mainTemplate);
-            }
-
-            // Clear output
-            document.getElementById('output-panel').innerHTML = '<pre>Click "Run Tests" to execute your code...</pre>';
-        }
-
-        function changeLanguage() {
-            const lang = document.getElementById('language-select').value;
-            if (editor) {
-                monaco.editor.setModelLanguage(editor.getModel(), lang);
-            }
-        }
-
-        function resetCode() {
-            if (confirm('Are you sure you want to reset your code to the template?')) {
-                const question = testData.questions[currentQuestionIndex];
-                if (editor && question.template) {
-                    editor.setValue(question.template);
-                }
-            }
-        }
-
-        async function runCode() {
-            const question = testData.questions[currentQuestionIndex];
-            const solutionCode = solutionEditor.getValue();
-            const mainTemplate = question.mainTemplate;
-            const language = document.getElementById('language-select').value;
-
-            const runBtn = document.getElementById('run-btn');
-            runBtn.disabled = true;
-            runBtn.innerHTML = '<span class="loading"></span> Running...';
-
-            const outputPanel = document.getElementById('output-panel');
-            outputPanel.innerHTML = '<pre>🔄 Executing your code...</pre>';
-
-            try {
-                const response = await fetch('/api/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        solutionCode: solutionCode,
-                        mainTemplate: mainTemplate,
-                        testCases: question.visibleTestCases,
-                        language,
-                        questionId: question.id,
-                        sessionId: sessionId
-                    })
-                });
-
-                if (!response.ok) throw new Error('Execution failed');
-
-                const result = await response.json();
-                displayTestResults(result);
-
-            } catch (error) {
-                console.error('Execution error:', error);
-                outputPanel.innerHTML = `
-            <div class="test-result failed">
-                <strong>❌ Execution Error</strong><br>
-                ${error.message}
-            </div>
-        `;
-            } finally {
-                runBtn.disabled = false;
-                runBtn.innerHTML = '▶ Run Tests';
-            }
-        }
-
-        function displayTestResults(result) {
-            const outputPanel = document.getElementById('output-panel');
-            const summary = result.summary;
-
-            let summaryClass = 'all-passed';
-            if (summary.passed === 0) {
-                summaryClass = 'all-failed';
-            } else if (summary.passed < summary.total) {
-                summaryClass = 'some-failed';
-            }
-
-            let output = `
-                <div class="test-results-summary">
-                    <div class="summary-section">
-                        <div class="summary-title">Overall Results</div>
-                        <div class="summary-stats">
-                            <div class="summary-main ${summaryClass}">
-                                ${summary.passed}/${summary.total}
-                            </div>
-                            <div class="summary-detail">
-                                Passed ${summary.percentage}%
-                            </div>
-                        </div>
-                    </div>
-                    <div class="summary-section" style="text-align: right;">
-                        <div class="summary-title">Breakdown</div>
-                        <div class="summary-stats" style="justify-content: flex-end;">
-                            <div class="summary-detail">
-                                <span style="color: #2ed573;">✓ ${summary.visiblePassed || 0}</span> Visible<br>
-                                <span style="color: #667eea;">✓ ${summary.hiddenPassed || 0}</span> Hidden
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            result.visibleResults.forEach(r => {
-                const status = r.passed ? 'passed' : 'failed';
-                output += `
-                    <div class="test-result ${status}">
-                        <div class="test-result-header">
-                            <strong>Test Case ${r.testCase} (Visible)</strong>
-                            <span class="test-result-badge badge-${status}">
-                                ${r.passed ? '✓ PASSED' : '✗ FAILED'}
-                            </span>
-                        </div>
-                        <div class="test-details">
-                            <strong>Input:</strong> <code>${r.input}</code><br>
-                            <strong>Expected:</strong> <code>${r.expectedOutput}</code><br>
-                            <strong>Got:</strong> <code>${r.actualOutput || '(no output)'}</code><br>
-                            ${r.error ? `<div class="error-message"><strong>Error:</strong> ${r.error}</div>` : ''}
-                            <strong>Time:</strong> ${r.executionTime.toFixed(2)}ms
-                        </div>
-                    </div>
-                `;
-            });
-
-            if (result.hiddenResults && result.hiddenResults.length > 0) {
-                result.hiddenResults.forEach(r => {
-                    const status = r.passed ? 'passed' : 'failed';
-                    output += `
-                        <div class="test-result hidden ${status}">
-                            <div class="test-result-header">
-                                <strong>Hidden Test Case ${r.testCase}</strong>
-                                <span class="test-result-badge badge-${status}">
-                                    ${r.passed ? '✓ PASSED' : '✗ FAILED'}
-                                </span>
-                            </div>
-                            <div class="test-details">
-                                <em style="color: #888;">Hidden test case details are not shown</em><br>
-                                ${r.error ? `<div class="error-message"><strong>Error:</strong> ${r.error}</div>` : ''}
-                                <strong>Time:</strong> ${r.executionTime.toFixed(2)}ms
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-
-            outputPanel.innerHTML = output;
-        }
-
-        function openCustomInput() {
-            document.getElementById('custom-input-overlay').classList.add('active');
-            document.getElementById('custom-input-field').value = '';
-        }
-
-        function closeCustomInput() {
-            document.getElementById('custom-input-overlay').classList.remove('active');
-        }
-
-        async function executeCustomInput() {
-            const customInput = document.getElementById('custom-input-field').value;
-            const code = editor.getValue();
-            const language = document.getElementById('language-select').value;
-            const question = testData.questions[currentQuestionIndex];
-
-            if (!customInput.trim()) {
-                alert('Please enter input values');
-                return;
-            }
-
-            const outputPanel = document.getElementById('output-panel');
-            outputPanel.innerHTML = '<pre>🔄 Executing with custom input...</pre>';
-
-            closeCustomInput();
-
-            try {
-                const response = await fetch('/api/execute/custom', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        code,
-                        customInput,
-                        language,
-                        functionName: question.functionName
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Execution failed');
-                }
-
-                const result = await response.json();
-
-                let html = `
-                    <div class="test-results-summary">
-                        <div class="summary-section">
-                            <div class="summary-title">Custom Input Execution</div>
-                            <div class="summary-stats">
-                                <div class="summary-main" style="font-size: 1.5em; color: #667eea;">
-                                    ⚡
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="test-result ${result.hasError ? 'failed' : ''}">
-                        <div class="test-result-header">
-                            <strong>Custom Test</strong>
-                        </div>
-                        <div class="test-details">
-                            <strong>Input:</strong><br>
-                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${customInput}</code><br>
-                            <strong>Output:</strong><br>
-                            <code style="display: block; white-space: pre-wrap; margin: 5px 0; background: #1e1e1e; padding: 10px; border-radius: 5px;">${result.output || '(no output)'}</code><br>
-                            ${result.stderr ? `<div class="error-message"><strong>Error:</strong><br>${result.stderr}</div>` : ''}
-                            ${result.error ? `<div class="error-message"><strong>Error:</strong> ${result.error}</div>` : ''}
-                            <strong>Time:</strong> ${result.executionTime ? result.executionTime.toFixed(2) + 'ms' : 'N/A'}
-                        </div>
-                    </div>
-                `;
-
-                outputPanel.innerHTML = html;
-
-            } catch (error) {
-                console.error('Custom execution error:', error);
-                outputPanel.innerHTML = `
-                    <div class="test-result failed">
-                        <strong>❌ Execution Error</strong><br>
-                        ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        function submitQuestion() {
-            const question = testData.questions[currentQuestionIndex];
-            const code = editor.getValue();
-            const language = document.getElementById('language-select').value;
-
-            if (!code.trim() || code.trim() === '// Write your function here') {
-                if (!confirm('Your code appears to be empty. Submit anyway?')) {
-                    return;
-                }
-            }
-
-            answers[question.id] = {
-                questionId: question.id,
-                code: code,
-                language: language,
-                submittedAt: new Date().toISOString()
-            };
-
-            document.querySelectorAll('.question-item')[currentQuestionIndex].classList.add('answered');
-
-            const answeredCount = Object.keys(answers).length;
-            document.getElementById('answered-count').textContent = answeredCount;
-
-            alert('✓ Question submitted successfully!');
-
-            if (currentQuestionIndex < testData.questions.length - 1) {
-                loadQuestion(currentQuestionIndex + 1);
-            }
-        }
-
-        async function submitTest() {
-            const submitBtn = document.getElementById('submit-test-btn');
-            if (submitBtn.disabled) {
-                return;
-            }
-
-            const answeredCount = Object.keys(answers).length;
-            const totalQuestions = testData.questions.length;
-
-            if (answeredCount === 0) {
-                if (!confirm('You haven\'t answered any questions. Are you sure you want to submit?')) {
-                    return;
-                }
-            } else if (answeredCount < totalQuestions) {
-                if (!confirm(`You've answered ${answeredCount} out of ${totalQuestions} questions. Submit anyway?`)) {
-                    return;
-                }
-            } else {
-                if (!confirm('Are you sure you want to submit your test?')) {
-                    return;
-                }
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ Submitting...';
-
-            isTestActive = false;
-            clearInterval(timerInterval);
-            clearInterval(aiInterval);
-
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-            }
-
-            try {
-                const response = await fetch('/api/test-session/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sessionId,
-                        answers
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to submit test');
-                }
-
-                const result = await response.json();
-                window.location.href = `/success.html?submission=${result.submissionId}`;
-
-            } catch (error) {
-                console.error('Error submitting test:', error);
-                alert('Error submitting test: ' + error.message + '\n\nPlease try again.');
-
-                submitBtn.disabled = false;
-                submitBtn.textContent = '📤 Submit Test';
-
-                isTestActive = true;
-                if (!timerInterval) {
-                    startTimer();
-                }
-            }
-        }
-
+        
         function startProctoring() {
             const canvas = document.getElementById('ai-canvas');
             const ctx = canvas.getContext('2d');
@@ -1886,22 +914,20 @@
                         socket.emit('video-frame', { sessionId, frame });
                     }
 
+                    // Simple AI analysis
                     analyzeFrame(frame);
                 } catch (e) {
                     console.log('Proctoring frame capture error:', e);
                 }
 
-            }, 3000);
+            }, 3000); // Every 3 seconds
         }
 
         async function analyzeFrame(frameData) {
+            // Simulated AI detection (replace with real AI model like TensorFlow.js)
             const random = Math.random();
 
-            if (random < 0.05) {
-                const warning = document.getElementById('warning-banner');
-                warning.textContent = '⚠️ WARNING: Please keep your eyes on the screen';
-                warning.classList.add('active');
-
+            if (random < 0.05) { // 5% chance to simulate detection
                 if (socket) {
                     socket.emit('proctoring-alert', {
                         sessionId,
@@ -1913,10 +939,6 @@
                         }
                     });
                 }
-
-                setTimeout(() => {
-                    warning.classList.remove('active');
-                }, 3000);
             }
         }
 
@@ -1924,7 +946,6 @@
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden && isTestActive) {
                     tabSwitchCount++;
-                    document.getElementById('focus-status').style.background = '#ff4757';
 
                     if (socket) {
                         socket.emit('proctoring-alert', {
@@ -1942,21 +963,57 @@
                     if (tabSwitchCount >= 3) {
                         alert(`⚠️ WARNING: You have switched tabs ${tabSwitchCount} times. This is being recorded.`);
                     }
-                } else if (!document.hidden) {
-                    document.getElementById('focus-status').style.background = '#2ed573';
+                }
+            });
+            
+            // Disable right-click
+            document.addEventListener('contextmenu', (e) => {
+                if (isTestActive) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // Disable copy-paste
+            document.addEventListener('copy', (e) => {
+                if (isTestActive) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            document.addEventListener('paste', (e) => {
+                if (isTestActive) {
+                    e.preventDefault();
+                    return false;
                 }
             });
         }
 
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (!isTestActive) {
+                    clearInterval(timerInterval);
+                    return;
+                }
+
+                timeRemaining--;
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                document.getElementById('timer').textContent = 
+                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    submitTest();
+                }
+            }, 1000);
+        }
+
         window.addEventListener('load', () => {
             initMonacoEditor();
-            initResizeHandles();
-
-            if (testId) {
-                loadTest();
-            }
+            if (testId) loadTest();
         });
     </script>
 </body>
-
 </html>

@@ -58,19 +58,6 @@ const requireAdmin = (req, res, next) => {
   }
 };
 
-// Helper function to get language config
-function getPistonLanguageConfig(language) {
-  const configs = {
-    'javascript': { language: 'javascript', version: '18.15.0', file: 'solution.js' },
-    'python': { language: 'python', version: '3.10.0', file: 'solution.py' },
-    'java': { language: 'java', version: '15.0.2', file: 'Solution.java' },
-    'cpp': { language: 'c++', version: '10.2.0', file: 'solution.cpp' },
-    'c': { language: 'c', version: '10.2.0', file: 'solution.c' },
-    'csharp': { language: 'csharp', version: '6.12.0', file: 'Solution.cs' }
-  };
-  return configs[language] || configs['javascript'];
-}
-
 // Smart output comparison
 function compareOutputs(actual, expected) {
   const normalizeOutput = (str) => {
@@ -127,413 +114,6 @@ function compareOutputs(actual, expected) {
   }
 
   return actual.trim() === expected.trim();
-}
-
-// FIXED: Extract student's Solution class and wrap it properly
-function wrapCodeWithTestHarness(code, testCases, language, functionName) {
-  // Auto-detect function name if not provided
-  if (!functionName) {
-    const jsMatch = code.match(/function\s+(\w+)\s*\(/);
-    const pyMatch = code.match(/def\s+(\w+)\s*\(/);
-    const javaMatch = code.match(/(?:public|private|protected)?\s*(?:static)?\s*\w+(?:<[^>]+>)?\s+(\w+)\s*\(/);
-
-    if (jsMatch) functionName = jsMatch[1];
-    else if (pyMatch) functionName = pyMatch[1];
-    else if (javaMatch) functionName = javaMatch[1];
-    else functionName = 'solution';
-  }
-
-  switch (language) {
-    case 'javascript':
-      return `${code}
-
-// ===== AUTO-GENERATED TEST HARNESS =====
-const testCases = ${JSON.stringify(testCases)};
-
-testCases.forEach((tc, idx) => {
-    try {
-        const inputParts = tc.input.split(',').map(s => s.trim());
-        const args = inputParts.map(arg => {
-            try {
-                return JSON.parse(arg);
-            } catch (e) {
-                const num = Number(arg);
-                return isNaN(num) ? arg.replace(/['"]/g, '') : num;
-            }
-        });
-        
-        const result = ${functionName}(...args);
-        console.log('TEST_CASE_' + idx + ':' + JSON.stringify(result));
-    } catch (error) {
-        console.log('TEST_CASE_' + idx + '_ERROR:' + error.message);
-    }
-});
-`;
-
-    case 'python':
-      return `${code}
-
-# ===== AUTO-GENERATED TEST HARNESS =====
-import json
-test_cases = ${JSON.stringify(testCases)}
-
-for idx, tc in enumerate(test_cases):
-    try:
-        input_parts = [s.strip() for s in tc['input'].split(',')]
-        args = []
-        for arg in input_parts:
-            try:
-                args.append(json.loads(arg))
-            except:
-                try:
-                    args.append(float(arg) if '.' in arg else int(arg))
-                except:
-                    args.append(arg.strip('\\"\''))
-        
-        result = ${functionName}(*args)
-        print(f'TEST_CASE_{idx}:{json.dumps(result)}')
-    except Exception as error:
-        print(f'TEST_CASE_{idx}_ERROR:{str(error)}')
-`;
-
-    case 'java':
-      // FIXED: Handle both cases - student provides Solution class OR just the method
-      let studentCode = code.trim();
-      let hasSolutionClass = studentCode.includes('class Solution');
-
-      // If student already wrapped in Solution class, use it as-is
-      // Otherwise, wrap their method in Solution class
-      if (!hasSolutionClass) {
-        studentCode = `class Solution {\n${studentCode}\n}`;
-      }
-
-      return `import java.util.*;
-
-${studentCode}
-
-public class Main {
-    public static void main(String[] args) {
-        Solution solution = new Solution();
-        
-        // Test cases: [input, expectedOutput]
-        String[][] testCases = {
-${testCases.map(tc => `            {"${tc.input.replace(/"/g, '\\"')}", "${tc.output.replace(/"/g, '\\"')}"}`).join(',\n')}
-        };
-        
-        for (int i = 0; i < testCases.length; i++) {
-            try {
-                String input = testCases[i][0];
-                Object result = executeTest(solution, input, "${functionName}");
-                
-                // Convert result to JSON-like string
-                String output = formatOutput(result);
-                System.out.println("TEST_CASE_" + i + ":" + output);
-                
-            } catch (Exception e) {
-                System.out.println("TEST_CASE_" + i + "_ERROR:" + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-    }
-    
-    private static Object executeTest(Solution solution, String input, String methodName) throws Exception {
-        // Parse input arguments
-        String[] parts = parseInput(input);
-        
-        // Try to find and invoke the method with matching parameters
-        try {
-            // Single argument methods
-            if (parts.length == 1) {
-                return callWithOneArg(solution, parts[0], methodName);
-            } 
-            // Two argument methods
-            else if (parts.length == 2) {
-                return callWithTwoArgs(solution, parts[0], parts[1], methodName);
-            }
-            // Three argument methods
-            else if (parts.length == 3) {
-                return callWithThreeArgs(solution, parts[0], parts[1], parts[2], methodName);
-            }
-        } catch (Exception e) {
-            throw new Exception("Method invocation failed: " + e.getMessage());
-        }
-        
-        throw new Exception("Unsupported number of arguments: " + parts.length);
-    }
-    
-    private static String[] parseInput(String input) {
-        List<String> result = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        int bracketDepth = 0;
-        boolean inQuotes = false;
-        
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-            
-            if (c == '"' && (i == 0 || input.charAt(i-1) != '\\\\')) {
-                inQuotes = !inQuotes;
-                current.append(c);
-            } else if (!inQuotes && (c == '[' || c == '{')) {
-                bracketDepth++;
-                current.append(c);
-            } else if (!inQuotes && (c == ']' || c == '}')) {
-                bracketDepth--;
-                current.append(c);
-            } else if (c == ',' && bracketDepth == 0 && !inQuotes) {
-                result.add(current.toString().trim());
-                current = new StringBuilder();
-            } else {
-                current.append(c);
-            }
-        }
-        
-        if (current.length() > 0) {
-            result.add(current.toString().trim());
-        }
-        
-        return result.toArray(new String[0]);
-    }
-    
-    private static Object callWithOneArg(Solution sol, String arg, String method) throws Exception {
-        arg = arg.trim();
-        
-        // Handle arrays/lists
-        if (arg.startsWith("[")) {
-            if (arg.contains("\\"")) {
-                // String array
-                String[] arr = parseStringArray(arg);
-                try {
-                    return sol.getClass().getMethod(method, String[].class).invoke(sol, (Object)arr);
-                } catch (NoSuchMethodException e) {
-                    // Try with List<String>
-                    List<String> list = Arrays.asList(arr);
-                    return sol.getClass().getMethod(method, List.class).invoke(sol, list);
-                }
-            } else {
-                // Integer array
-                int[] arr = parseIntArray(arg);
-                try {
-                    return sol.getClass().getMethod(method, int[].class).invoke(sol, (Object)arr);
-                } catch (NoSuchMethodException e) {
-                    // Try with Integer[]
-                    Integer[] objArr = new Integer[arr.length];
-                    for (int i = 0; i < arr.length; i++) objArr[i] = arr[i];
-                    try {
-                        return sol.getClass().getMethod(method, Integer[].class).invoke(sol, (Object)objArr);
-                    } catch (NoSuchMethodException e2) {
-                        // Try with List<Integer>
-                        List<Integer> list = new ArrayList<>();
-                        for (int n : arr) list.add(n);
-                        return sol.getClass().getMethod(method, List.class).invoke(sol, list);
-                    }
-                }
-            }
-        }
-        
-        // Handle strings
-        if (arg.startsWith("\\"")) {
-            String str = arg.substring(1, arg.length() - 1);
-            return sol.getClass().getMethod(method, String.class).invoke(sol, str);
-        }
-        
-        // Handle booleans
-        if (arg.equals("true") || arg.equals("false")) {
-            boolean bool = Boolean.parseBoolean(arg);
-            return sol.getClass().getMethod(method, boolean.class).invoke(sol, bool);
-        }
-        
-        // Handle numbers
-        try {
-            int num = Integer.parseInt(arg);
-            return sol.getClass().getMethod(method, int.class).invoke(sol, num);
-        } catch (NumberFormatException e) {
-            try {
-                double num = Double.parseDouble(arg);
-                return sol.getClass().getMethod(method, double.class).invoke(sol, num);
-            } catch (NumberFormatException e2) {
-                throw new Exception("Cannot parse argument: " + arg);
-            }
-        }
-    }
-    
-    private static Object callWithTwoArgs(Solution sol, String arg1, String arg2, String method) throws Exception {
-        arg1 = arg1.trim();
-        arg2 = arg2.trim();
-        
-        // Common pattern: array + target number
-        if (arg1.startsWith("[") && !arg2.startsWith("[") && !arg2.startsWith("\\"")) {
-            int[] arr = parseIntArray(arg1);
-            int target = Integer.parseInt(arg2);
-            return sol.getClass().getMethod(method, int[].class, int.class).invoke(sol, arr, target);
-        }
-        
-        // String + String
-        if (arg1.startsWith("\\"") && arg2.startsWith("\\"")) {
-            String str1 = arg1.substring(1, arg1.length() - 1);
-            String str2 = arg2.substring(1, arg2.length() - 1);
-            return sol.getClass().getMethod(method, String.class, String.class).invoke(sol, str1, str2);
-        }
-        
-        // Two numbers
-        if (!arg1.startsWith("[") && !arg2.startsWith("[") && !arg1.startsWith("\\"") && !arg2.startsWith("\\"")) {
-            try {
-                int num1 = Integer.parseInt(arg1);
-                int num2 = Integer.parseInt(arg2);
-                return sol.getClass().getMethod(method, int.class, int.class).invoke(sol, num1, num2);
-            } catch (NumberFormatException e) {
-                throw new Exception("Cannot parse numeric arguments");
-            }
-        }
-        
-        throw new Exception("Unsupported two-argument combination: " + arg1 + ", " + arg2);
-    }
-    
-    private static Object callWithThreeArgs(Solution sol, String arg1, String arg2, String arg3, String method) throws Exception {
-        // Add support for common 3-argument patterns
-        throw new Exception("Three-argument methods not yet supported");
-    }
-    
-    private static int[] parseIntArray(String s) {
-        s = s.trim();
-        if (s.equals("[]")) return new int[0];
-        
-        s = s.substring(1, s.length() - 1); // Remove brackets
-        if (s.trim().isEmpty()) return new int[0];
-        
-        String[] parts = s.split(",");
-        int[] result = new int[parts.length];
-        for (int i = 0; i < parts.length; i++) {
-            result[i] = Integer.parseInt(parts[i].trim());
-        }
-        return result;
-    }
-    
-    private static String[] parseStringArray(String s) {
-        List<String> result = new ArrayList<>();
-        s = s.trim().substring(1, s.length() - 1); // Remove brackets
-        if (s.trim().isEmpty()) return new String[0];
-        
-        StringBuilder current = new StringBuilder();
-        boolean inQuotes = false;
-        
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '"' && (i == 0 || s.charAt(i-1) != '\\\\')) {
-                inQuotes = !inQuotes;
-            } else if (c == ',' && !inQuotes) {
-                if (current.length() > 0) {
-                    result.add(current.toString().trim().replace("\\"", ""));
-                    current = new StringBuilder();
-                }
-            } else if (inQuotes) {
-                current.append(c);
-            }
-        }
-        
-        if (current.length() > 0) {
-            result.add(current.toString().trim().replace("\\"", ""));
-        }
-        
-        return result.toArray(new String[0]);
-    }
-    
-    private static String formatOutput(Object obj) {
-        if (obj == null) return "null";
-        
-        if (obj instanceof int[]) {
-            int[] arr = (int[]) obj;
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(",");
-                sb.append(arr[i]);
-            }
-            sb.append("]");
-            return sb.toString();
-        }
-        
-        if (obj instanceof Integer[]) {
-            Integer[] arr = (Integer[]) obj;
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(",");
-                sb.append(arr[i]);
-            }
-            sb.append("]");
-            return sb.toString();
-        }
-        
-        if (obj instanceof String[]) {
-            String[] arr = (String[]) obj;
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(",");
-                sb.append("\\"").append(arr[i]).append("\\"");
-            }
-            sb.append("]");
-            return sb.toString();
-        }
-        
-        if (obj instanceof List) {
-            List<?> list = (List<?>) obj;
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < list.size(); i++) {
-                if (i > 0) sb.append(",");
-                Object item = list.get(i);
-                if (item instanceof String) {
-                    sb.append("\\"").append(item).append("\\"");
-                } else if (item instanceof List) {
-                    sb.append(formatOutput(item));
-                } else {
-                    sb.append(item);
-                }
-            }
-            sb.append("]");
-            return sb.toString();
-        }
-        
-        if (obj instanceof Boolean) {
-            return obj.toString().toLowerCase();
-        }
-        
-        return obj.toString();
-    }
-}
-`;
-
-    case 'cpp':
-      return `#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
-using namespace std;
-
-${code}
-
-int main() {
-    Solution solution;
-    
-    // Test cases
-    vector<pair<string, string>> testCases = {
-${testCases.map((tc, i) => `        {"${tc.input.replace(/"/g, '\\"')}", "${tc.output.replace(/"/g, '\\"')}"}`).join(',\n')}
-    };
-    
-    for (int i = 0; i < testCases.size(); i++) {
-        try {
-            // Parse input and call function
-            // Output result
-            cout << "TEST_CASE_" << i << ":result" << endl;
-        } catch (exception& e) {
-            cout << "TEST_CASE_" << i << "_ERROR:" << e.what() << endl;
-        }
-    }
-    
-    return 0;
-}
-`;
-
-    default:
-      return code;
-  }
 }
 
 // Routes
@@ -708,14 +288,14 @@ app.get('/api/submissions/:id', requireAdmin, (req, res) => {
   }
 });
 
-// FIXED: Enhanced code execution with proper hidden test case handling
+// FIXED: Enhanced code execution with proper code separation
 app.post('/api/execute', async (req, res) => {
   const { solutionCode, mainTemplate, testCases, language = 'java', questionId } = req.body;
 
-  if (!solutionCode || !mainTemplate || !testCases || testCases.length === 0) {
+  if (!solutionCode || !testCases || testCases.length === 0) {
     return res.status(400).json({
       success: false,
-      error: 'Solution code, main template, and test cases are required'
+      error: 'Solution code and test cases are required'
     });
   }
 
@@ -740,85 +320,210 @@ app.post('/api/execute', async (req, res) => {
     
     console.log(`Executing ${allTestCases.length} test cases (${testCases.length} visible, ${hiddenTestCases.length} hidden)`);
     
-    // Execute each test case
-    for (let i = 0; i < allTestCases.length; i++) {
-      const testCase = allTestCases[i];
+    // Language-specific execution
+    if (language === 'java') {
+      // Java execution
+      let cleanedCode = solutionCode.trim();
+      cleanedCode = cleanedCode.replace(/^import\s+.*?;\s*/gm, '');
       
-      // Replace {{input}} in main template with actual test input
-      const mainCode = mainTemplate.replace(/\{\{input\}\}/g, testCase.input);
+      let hasClassWrapper = cleanedCode.includes('class Solution');
+      if (!hasClassWrapper) {
+        cleanedCode = `class Solution {\n${cleanedCode}\n}`;
+      }
       
-      // Combine solution + main
-      const fullCode = solutionCode + '\n\n' + mainCode;
-      
-      console.log(`Test case ${i + 1}: Input="${testCase.input}", Expected="${testCase.output}"`);
-      
-      const startTime = Date.now();
-      
-      try {
-        const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            language: 'java',
-            version: '15.0.2',
-            files: [{
-              name: 'Main.java',
-              content: fullCode
-            }]
-          })
-        });
+      // Execute each test case
+      for (let i = 0; i < allTestCases.length; i++) {
+        const testCase = allTestCases[i];
         
-        if (!response.ok) {
-          throw new Error(`Execution service error: ${response.statusText}`);
+        let mainCode = mainTemplate;
+        if (mainTemplate && mainTemplate.includes('{{input}}')) {
+          mainCode = mainTemplate.replace(/\{\{input\}\}/g, testCase.input);
+          mainCode = mainCode.replace(/^import\s+.*?;\s*/gm, '');
+          if (!mainCode.includes('public class Main')) {
+            mainCode = `public class Main {\n${mainCode}\n}`;
+          }
+        } else {
+          mainCode = `public class Main {
+    public static void main(String[] args) {
+        Solution sol = new Solution();
+        System.out.println(sol.letterCombinations("${testCase.input}"));
+    }
+}`;
         }
         
-        const result = await response.json();
-        const executionTime = Date.now() - startTime;
+        const fullCode = `import java.util.*;
+
+${cleanedCode}
+
+${mainCode}`;
         
-        if (result.compile && result.compile.stderr) {
+        const startTime = Date.now();
+        
+        try {
+          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              language: 'java',
+              version: '15.0.2',
+              files: [{ name: 'Main.java', content: fullCode }]
+            })
+          });
+          
+          if (!response.ok) throw new Error(`Execution service error: ${response.statusText}`);
+          
+          const result = await response.json();
+          const executionTime = Date.now() - startTime;
+          
+          if (result.compile && result.compile.stderr) {
+            results.push({
+              testCase: i + 1,
+              input: testCase.input,
+              expectedOutput: testCase.output,
+              actualOutput: '',
+              passed: false,
+              error: 'Compilation failed: ' + result.compile.stderr,
+              executionTime,
+              status: 'compilation_error'
+            });
+            continue;
+          }
+          
+          const output = (result.run?.stdout || '').trim();
+          const stderr = result.run?.stderr || '';
+          const passed = compareOutputs(output, testCase.output);
+          
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: output,
+            passed,
+            error: stderr || null,
+            executionTime,
+            status: passed ? 'passed' : 'failed'
+          });
+          
+        } catch (error) {
           results.push({
             testCase: i + 1,
             input: testCase.input,
             expectedOutput: testCase.output,
             actualOutput: '',
             passed: false,
-            error: 'Compilation failed: ' + result.compile.stderr,
-            executionTime,
-            status: 'compilation_error'
+            error: error.message,
+            executionTime: 0,
+            status: 'error'
           });
-          continue;
         }
+      }
+    } else if (language === 'python') {
+      // Python execution
+      for (let i = 0; i < allTestCases.length; i++) {
+        const testCase = allTestCases[i];
         
-        const output = (result.run?.stdout || '').trim();
-        const stderr = result.run?.stderr || '';
+        const pythonCode = `${solutionCode}
+
+# Test execution
+result = letterCombinations("${testCase.input}")
+print(result)
+`;
         
-        const passed = compareOutputs(output, testCase.output);
+        const startTime = Date.now();
         
-        console.log(`  Output: "${output}" | Expected: "${testCase.output}" | Passed: ${passed}`);
+        try {
+          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              language: 'python',
+              version: '3.10.0',
+              files: [{ name: 'solution.py', content: pythonCode }]
+            })
+          });
+          
+          const result = await response.json();
+          const executionTime = Date.now() - startTime;
+          const output = (result.run?.stdout || '').trim();
+          const passed = compareOutputs(output, testCase.output);
+          
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: output,
+            passed,
+            error: result.run?.stderr || null,
+            executionTime,
+            status: passed ? 'passed' : 'failed'
+          });
+          
+        } catch (error) {
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: '',
+            passed: false,
+            error: error.message,
+            executionTime: 0,
+            status: 'error'
+          });
+        }
+      }
+    } else if (language === 'javascript') {
+      // JavaScript execution
+      for (let i = 0; i < allTestCases.length; i++) {
+        const testCase = allTestCases[i];
         
-        results.push({
-          testCase: i + 1,
-          input: testCase.input,
-          expectedOutput: testCase.output,
-          actualOutput: output,
-          passed,
-          error: stderr || null,
-          executionTime,
-          status: passed ? 'passed' : 'failed'
-        });
+        const jsCode = `${solutionCode}
+
+// Test execution
+const result = letterCombinations("${testCase.input}");
+console.log(JSON.stringify(result));
+`;
         
-      } catch (error) {
-        console.error(`Error in test case ${i + 1}:`, error);
-        results.push({
-          testCase: i + 1,
-          input: testCase.input,
-          expectedOutput: testCase.output,
-          actualOutput: '',
-          passed: false,
-          error: error.message,
-          executionTime: 0,
-          status: 'error'
-        });
+        const startTime = Date.now();
+        
+        try {
+          const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              language: 'javascript',
+              version: '18.15.0',
+              files: [{ name: 'solution.js', content: jsCode }]
+            })
+          });
+          
+          const result = await response.json();
+          const executionTime = Date.now() - startTime;
+          const output = (result.run?.stdout || '').trim();
+          const passed = compareOutputs(output, testCase.output);
+          
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: output,
+            passed,
+            error: result.run?.stderr || null,
+            executionTime,
+            status: passed ? 'passed' : 'failed'
+          });
+          
+        } catch (error) {
+          results.push({
+            testCase: i + 1,
+            input: testCase.input,
+            expectedOutput: testCase.output,
+            actualOutput: '',
+            passed: false,
+            error: error.message,
+            executionTime: 0,
+            status: 'error'
+          });
+        }
       }
     }
     
@@ -852,86 +557,6 @@ app.post('/api/execute', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Code execution failed',
-      message: error.message
-    });
-  }
-});
-// Custom input execution
-app.post('/api/execute/custom', async (req, res) => {
-  const { code, customInput, language = 'javascript', functionName } = req.body;
-
-  if (!code) {
-    return res.status(400).json({
-      success: false,
-      error: 'Code is required'
-    });
-  }
-
-  try {
-    const langConfig = getPistonLanguageConfig(language);
-
-    const testCase = { input: customInput, output: '' };
-    const wrappedCode = wrapCodeWithTestHarness(code, [testCase], language, functionName);
-
-    const startTime = Date.now();
-
-    const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        language: langConfig.language,
-        version: langConfig.version,
-        files: [{
-          name: langConfig.file,
-          content: wrappedCode
-        }],
-        stdin: '',
-        args: [],
-        compile_timeout: 10000,
-        run_timeout: 3000
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Execution service error: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    const executionTime = Date.now() - startTime;
-
-    if (result.compile && result.compile.stderr) {
-      return res.json({
-        success: false,
-        error: 'Compilation Error',
-        stderr: result.compile.stderr,
-        executionTime
-      });
-    }
-
-    const output = result.run?.stdout || '';
-    const resultLine = output.split('\n').find(line => line.startsWith('TEST_CASE_0:'));
-
-    let finalOutput = '';
-    if (resultLine) {
-      finalOutput = resultLine.substring('TEST_CASE_0:'.length).trim();
-    } else {
-      finalOutput = output;
-    }
-
-    res.json({
-      success: true,
-      output: finalOutput,
-      stderr: result.run?.stderr || null,
-      exitCode: result.run?.code || 0,
-      executionTime,
-      hasError: result.run && result.run.stderr && result.run.code !== 0
-    });
-
-  } catch (error) {
-    console.error('Custom execution error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Execution failed',
       message: error.message
     });
   }
@@ -1053,7 +678,7 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║        🚀 Coding Test Platform Server (v3.1 FINAL)         ║
+║        🚀 Coding Test Platform Server (FIXED)              ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -1061,17 +686,11 @@ server.listen(PORT, () => {
 🌐 Admin Panel: http://localhost:${PORT}/admin.html
 🔐 Default Credentials: admin / admin123
 
-🆕 FINAL FIXES:
-   ✅ Handles BOTH wrapped and unwrapped code
-   ✅ Students can write "class Solution {}" OR just the method
-   ✅ Auto-detects and adapts to student's code style
+✅ FIXES:
+   ✅ Proper Java code combination (Solution + Main)
+   ✅ Separated visible and hidden test cases
+   ✅ Clean import handling
    ✅ Better error messages
-   ✅ printStackTrace for debugging
-
-📝 Students can write:
-   - Just the method: public int sum(int a, int b) {}
-   - OR with class: class Solution { public int sum... }
-   - Platform handles BOTH automatically!
 
 🎯 Ready to accept test sessions!
   `);
