@@ -134,8 +134,8 @@ app.use(session({
 // In-memory storage (only for users and proctoring display - NOT saved to DB)
 const users = {
   admin: {
-    username: 'admin',
-    password: 'admin123',
+    username: 'Gorin',
+    password: 'Gorin9056#',
     role: 'admin'
   }
 };
