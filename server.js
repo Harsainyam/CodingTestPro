@@ -172,6 +172,22 @@ app.get('/api/tests/:id', (req, res) => {
   }
 });
 
+app.patch('/api/tests/:id', requireAdmin, (req, res) => {
+  const test = tests[req.params.id];
+  if (test) {
+    // Update only provided fields
+    if (req.body.title) test.title = req.body.title;
+    if (req.body.duration) test.duration = req.body.duration;
+    if (req.body.instructions !== undefined) test.instructions = req.body.instructions;
+    
+    test.updatedAt = new Date().toISOString();
+    
+    res.json({ success: true, test });
+  } else {
+    res.status(404).json({ error: 'Test not found' });
+  }
+});
+
 app.delete('/api/tests/:id', requireAdmin, (req, res) => {
   if (tests[req.params.id]) {
     delete tests[req.params.id];
@@ -288,7 +304,9 @@ app.get('/api/submissions/:id', requireAdmin, (req, res) => {
   }
 });
 
-// COMPLETELY FIXED: Multi-language code execution with proper template handling
+// ============================================================================
+// FIXED: Multi-language code execution with CORRECT class ordering
+// ============================================================================
 app.post('/api/execute', async (req, res) => {
   const { solutionCode, mainTemplate, testCases, language = 'java', questionId } = req.body;
 
@@ -323,7 +341,7 @@ app.post('/api/execute', async (req, res) => {
 
     // Language-specific execution
     if (language === 'java') {
-      // ===== JAVA EXECUTION - COMPLETELY FIXED =====
+      // ===== JAVA EXECUTION - FIXED CLASS ORDERING =====
       for (let i = 0; i < allTestCases.length; i++) {
         const testCase = allTestCases[i];
 
@@ -396,44 +414,37 @@ app.post('/api/execute', async (req, res) => {
         }
 
         // Step 4: Replace {{input}} placeholder in main template
-        // Clean up the input: if it looks like multiple params separated by space, add commas
         let processedInput = testCase.input.trim();
         
-        // If input doesn't have commas but has spaces, it might need commas
-        // E.g., "2 3" should become "2, 3" for method calls
-        // BUT "new int[]{1 2 3}" should NOT be changed
-        // So only fix if it's simple arguments (no brackets)
         if (!processedInput.includes(',') && 
             !processedInput.includes('[') && 
             !processedInput.includes('{') &&
             processedInput.includes(' ')) {
-          // Multiple space-separated values without commas - add commas
           processedInput = processedInput.split(/\s+/).join(', ');
         }
         
         const mainCodeWithInput = cleanMainTemplate.replace(/\{\{input\}\}/g, processedInput);
 
-        // Step 5: Construct the final Java file with proper structure
-        // Indent the solution code properly
+        // Step 5: Construct the final Java file - CRITICAL FIX: Main class FIRST!
         const indentedSolution = cleanSolutionCode
           .split('\n')
           .map(line => '    ' + line)
           .join('\n');
         
-        // Indent the main code properly
         const indentedMainCode = mainCodeWithInput
           .split('\n')
           .map(line => '        ' + line)
           .join('\n');
         
-        const fullCode = `${importsBlock}class Solution {
-${indentedSolution}
-}
-
-public class Main {
+        // ⭐ CRITICAL FIX: public class Main MUST come FIRST ⭐
+        const fullCode = `${importsBlock}public class Main {
     public static void main(String[] args) {
 ${indentedMainCode}
     }
+}
+
+class Solution {
+${indentedSolution}
 }`;
 
         console.log(`\n📌 Test Case ${i + 1}:`);
@@ -443,41 +454,9 @@ ${indentedMainCode}
         // Log the actual code being executed (for debugging first test case only)
         if (i === 0) {
           console.log('\n' + '='.repeat(80));
-          console.log('📄 DEBUGGING - CODE GENERATION STEPS:');
+          console.log('📄 FINAL GENERATED CODE (FIXED CLASS ORDER):');
           console.log('='.repeat(80));
-          console.log('\n1️⃣ ORIGINAL SOLUTION CODE:');
-          console.log('---START---');
-          console.log(solutionCode);
-          console.log('---END---');
-          
-          console.log('\n2️⃣ ORIGINAL MAIN TEMPLATE:');
-          console.log('---START---');
-          console.log(mainTemplate);
-          console.log('---END---');
-          
-          console.log('\n3️⃣ CLEANED SOLUTION CODE:');
-          console.log('---START---');
-          console.log(cleanSolutionCode);
-          console.log('---END---');
-          
-          console.log('\n4️⃣ CLEANED MAIN TEMPLATE:');
-          console.log('---START---');
-          console.log(cleanMainTemplate);
-          console.log('---END---');
-          
-          console.log('\n🔧 INPUT PROCESSING:');
-          console.log(`Original input: "${testCase.input}"`);
-          console.log(`Processed input: "${processedInput}"`);
-          
-          console.log('\n5️⃣ MAIN CODE WITH INPUT REPLACED:');
-          console.log('---START---');
-          console.log(mainCodeWithInput);
-          console.log('---END---');
-          
-          console.log('\n6️⃣ FINAL GENERATED JAVA CODE:');
-          console.log('---START---');
           console.log(fullCode);
-          console.log('---END---');
           console.log('='.repeat(80) + '\n');
         }
 
@@ -552,7 +531,6 @@ ${indentedMainCode}
       for (let i = 0; i < allTestCases.length; i++) {
         const testCase = allTestCases[i];
 
-        // Replace {{input}} in main template
         let mainCode = mainTemplate || `result = solution({{input}})
 print(result)`;
         mainCode = mainCode.replace(/\{\{input\}\}/g, testCase.input);
@@ -614,7 +592,6 @@ print(result)`;
       for (let i = 0; i < allTestCases.length; i++) {
         const testCase = allTestCases[i];
 
-        // Replace {{input}} in main template
         let mainCode = mainTemplate || `const result = solution({{input}});
 console.log(JSON.stringify(result));`;
         mainCode = mainCode.replace(/\{\{input\}\}/g, testCase.input);
@@ -752,13 +729,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('video-frame', (data) => {
-    // Store frame in proctoring data
     if (proctoringData[data.sessionId]) {
       proctoringData[data.sessionId].frames.push({
         frame: data.frame,
         timestamp: new Date().toISOString()
       });
-      // Keep only last 50 frames to save memory
       if (proctoringData[data.sessionId].frames.length > 50) {
         proctoringData[data.sessionId].frames.shift();
       }
@@ -793,7 +768,6 @@ io.on('connection', (socket) => {
   socket.on('proctoring-alert', (data) => {
     const sessionId = data.sessionId;
 
-    // Store alert
     if (activeTests[sessionId]) {
       activeTests[sessionId].violations.push(data.alert);
 
@@ -855,7 +829,7 @@ server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║        🚀 Coding Test Platform Server (FIXED!)             ║
+║      🚀 Coding Test Platform - CLASS ORDERING FIXED! ✅     ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -863,28 +837,17 @@ server.listen(PORT, () => {
 🌐 Admin Panel: http://localhost:${PORT}/admin.html
 🔐 Default Credentials: admin / admin123
 
-✅ JAVA EXECUTION FIX APPLIED:
-   ✅ Solution class methods extracted cleanly
-   ✅ Main template body isolated properly
-   ✅ No duplicate class declarations
-   ✅ Imports handled correctly
-   ✅ {{input}} placeholder replaced in main code
-
-📝 HOW TO CREATE A TEST:
-   1. Student Code Template: Just the methods (no class wrapper needed)
-   2. Main Template: Code that calls the solution (with {{input}})
+✅ CRITICAL FIX APPLIED:
+   ⭐ Main class now comes FIRST (before Solution class)
+   ✅ Piston API will correctly find main() method
+   ✅ Code execution will work properly
    
-   Example:
-   Student Template:
-       public List<String> letterCombinations(String digits) {
-           // Student writes code here
-       }
-   
-   Main Template:
-       Solution sol = new Solution();
-       List<String> result = sol.letterCombinations({{input}});
-       System.out.println(result);
+   Generated structure:
+   public class Main {
+       public static void main(String[] args) { ... }
+   }
+   class Solution { ... }
 
-🎯 Ready to accept test sessions!
+🎯 Ready to execute code correctly!
   `);
 });
