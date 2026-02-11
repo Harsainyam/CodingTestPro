@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
@@ -7,6 +8,8 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
+// Load environment variables from .env file
+
 
 const app = express();
 const server = http.createServer(app);
@@ -27,8 +30,8 @@ mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
-.then(() => console.log('✅ MongoDB Connected Successfully'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err));
+  .then(() => console.log('✅ MongoDB Connected Successfully'))
+  .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // ============================================================================
 // MONGODB SCHEMAS - ONLY TEST DATA
@@ -67,23 +70,23 @@ const Test = mongoose.model('Test', testSchema);
 const submissionSchema = new mongoose.Schema({
   submissionId: { type: String, required: true, unique: true },
   testId: { type: String, required: true },
-  
+
   // Student Info
   candidateName: { type: String, required: true },
   candidateEmail: { type: String, required: true },
-  
+
   // Test Timing
   startTime: { type: Date, required: true },
   endTime: Date,
   submittedAt: Date,
-  
+
   // Question Answers
   answers: [{
     questionId: Number,
     code: String,
     language: String,
     submittedAt: Date,
-    
+
     // Test Results
     visibleTestCasesPassed: { type: Number, default: 0 },
     visibleTestCasesTotal: { type: Number, default: 0 },
@@ -101,7 +104,7 @@ const activeSessionSchema = new mongoose.Schema({
   candidateName: { type: String, required: true },
   candidateEmail: { type: String, required: true },
   startTime: { type: Date, default: Date.now },
-  
+
   // Current answers (gets moved to Submission on submit)
   answers: [{
     questionId: Number,
@@ -304,13 +307,39 @@ app.patch('/api/tests/:id', requireAdmin, async (req, res) => {
 });
 
 // Delete test
+// Replace this in your server.js
+
+// Delete test - FIXED VERSION
 app.delete('/api/tests/:id', requireAdmin, async (req, res) => {
   try {
-    await Test.deleteOne({ testId: req.params.id });
-    res.json({ success: true });
+    const testId = req.params.id;
+    console.log('🗑️ Attempting to delete test:', testId);
+
+    // Find the test first to verify it exists
+    const test = await Test.findOne({ testId: testId });
+
+    if (!test) {
+      console.log('❌ Test not found:', testId);
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    console.log('✅ Test found, deleting:', test.title);
+
+    // Delete the test
+    const result = await Test.deleteOne({ testId: testId });
+
+    console.log('🗑️ Delete result:', result);
+
+    if (result.deletedCount === 1) {
+      console.log('✅ Test successfully deleted from database');
+      res.json({ success: true, message: 'Test deleted successfully' });
+    } else {
+      console.log('⚠️ Delete operation completed but no document was deleted');
+      res.status(500).json({ error: 'Failed to delete test' });
+    }
   } catch (error) {
-    console.error('Error deleting test:', error);
-    res.status(500).json({ error: 'Failed to delete test' });
+    console.error('❌ Error deleting test:', error);
+    res.status(500).json({ error: 'Failed to delete test', message: error.message });
   }
 });
 
@@ -369,7 +398,7 @@ app.post('/api/test-session/save-answer', async (req, res) => {
     }
 
     const existingAnswerIndex = session.answers.findIndex(a => a.questionId === questionId);
-    
+
     const answerData = {
       questionId,
       code,
@@ -421,7 +450,7 @@ app.post('/api/test-session/submit', async (req, res) => {
       for (const [qId, answer] of Object.entries(clientAnswers)) {
         const questionId = parseInt(qId);
         const existingIndex = session.answers.findIndex(a => a.questionId === questionId);
-        
+
         if (existingIndex >= 0) {
           if (answer.code) {
             session.answers[existingIndex].code = answer.code;
@@ -485,7 +514,7 @@ app.get('/api/submissions', requireAdmin, async (req, res) => {
     const submissions = await Submission.find()
       .select('-answers.code') // Don't send full code in list view
       .sort({ submittedAt: -1 });
-    
+
     const submissionList = submissions.map(sub => ({
       id: sub.submissionId,
       candidateName: sub.candidateName,
@@ -498,7 +527,7 @@ app.get('/api/submissions', requireAdmin, async (req, res) => {
       totalVisiblePassed: sub.answers.reduce((sum, a) => sum + (a.visibleTestCasesPassed || 0), 0),
       totalHiddenPassed: sub.answers.reduce((sum, a) => sum + (a.hiddenTestCasesPassed || 0), 0)
     }));
-    
+
     res.json(submissionList);
   } catch (error) {
     console.error('Error fetching submissions:', error);
@@ -537,7 +566,7 @@ app.post('/api/execute', async (req, res) => {
 
   try {
     const activeSessionId = req.session.testSession || sessionId;
-    
+
     // Get hidden test cases from database
     let hiddenTestCases = [];
     if (activeSessionId && questionId) {
@@ -576,7 +605,7 @@ app.post('/api/execute', async (req, res) => {
           .replace(/class\s+Solution\s*\{/g, '')
           .replace(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{[\s\S]*?\n\s*\}/gm, '')
           .trim();
-        
+
         if (cleanSolutionCode.endsWith('}')) {
           const openBraces = (cleanSolutionCode.match(/\{/g) || []).length;
           const closeBraces = (cleanSolutionCode.match(/\}/g) || []).length;
@@ -584,7 +613,7 @@ app.post('/api/execute', async (req, res) => {
             cleanSolutionCode = cleanSolutionCode.substring(0, cleanSolutionCode.lastIndexOf('}')).trim();
           }
         }
-        
+
         if (!cleanSolutionCode || cleanSolutionCode === '' || cleanSolutionCode === '}') {
           results.push({
             testCase: i + 1,
@@ -604,12 +633,12 @@ app.post('/api/execute', async (req, res) => {
           .replace(/public\s+class\s+Main\s*\{/g, '')
           .replace(/class\s+Main\s*\{/g, '')
           .trim();
-        
+
         const mainMethodMatch = cleanMainTemplate.match(/public\s+static\s+void\s+main\s*\([^)]*\)\s*\{([\s\S]*)\}\s*$/);
         if (mainMethodMatch) {
           cleanMainTemplate = mainMethodMatch[1].trim();
         }
-        
+
         while (cleanMainTemplate.endsWith('}') && !cleanMainTemplate.includes('{')) {
           cleanMainTemplate = cleanMainTemplate.substring(0, cleanMainTemplate.lastIndexOf('}')).trim();
         }
@@ -618,12 +647,12 @@ app.post('/api/execute', async (req, res) => {
         if (!processedInput.includes(',') && !processedInput.includes('[') && !processedInput.includes('{') && processedInput.includes(' ')) {
           processedInput = processedInput.split(/\s+/).join(', ');
         }
-        
+
         const mainCodeWithInput = cleanMainTemplate.replace(/\{\{input\}\}/g, processedInput);
 
         const indentedSolution = cleanSolutionCode.split('\n').map(line => '    ' + line).join('\n');
         const indentedMainCode = mainCodeWithInput.split('\n').map(line => '        ' + line).join('\n');
-        
+
         const fullCode = `${importsBlock}public class Main {
     public static void main(String[] args) {
 ${indentedMainCode}
@@ -852,7 +881,7 @@ app.get('/api/health', async (req, res) => {
     const activeSessionsCount = await ActiveSession.countDocuments();
     const submissionsCount = await Submission.countDocuments();
     const testsCount = await Test.countDocuments();
-    
+
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
